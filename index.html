@@ -1,4 +1,4 @@
-<title>Signalüberlagerung</title>
+<title>Signalgenerator mit Frequenzanalyse</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -798,7 +798,17 @@
       margin: 26px 0 10px;
     }
 
-    #print-view section:first-of-type h2 { margin-top: 0; }
+    #print-view .pv-page section:first-of-type h2 { margin-top: 0; }
+
+    #print-view .pv-page-1 {
+      page-break-after: always;
+      break-after: page;
+    }
+
+    #print-view .pv-page-2 {
+      page-break-before: always;
+      break-before: page;
+    }
 
     #print-view table {
       width: 100%;
@@ -838,13 +848,39 @@
       margin-top: 4px;
     }
 
+    #print-view .pv-axis-hint {
+      display: flex;
+      justify-content: space-between;
+      font-family: var(--font-mono);
+      font-size: 9.5px;
+      color: #888;
+      margin-top: 3px;
+    }
+
     #print-view .pv-signals-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px 12px;
     }
 
     #print-view .pv-signals-grid .pv-figure img { max-width: 100%; }
+
+    #print-view .pv-params-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      margin-top: 10px;
+    }
+
+    #print-view .pv-params-table th,
+    #print-view .pv-params-table td {
+      text-align: left;
+      padding: 4px 8px;
+      border-bottom: 1px solid #ddd;
+    }
+
+    #print-view .pv-params-table th { color: #555; font-weight: 600; }
   }
 </style>
 
@@ -853,7 +889,7 @@
     <div class="header-top">
       <div class="header-text">
         <div class="eyebrow" data-i18n="eyebrow">8-Kanal-Signalgenerator</div>
-        <h1 data-i18n="h1">Signalüberlagerung</h1>
+        <h1 data-i18n="h1">Signalgenerator mit Frequenzanalyse</h1>
       </div>
       <div class="header-actions">
         <button type="button" class="preset-btn" id="layout-toggle-btn" data-i18n="layoutStandard">Standardansicht</button>
@@ -1063,9 +1099,9 @@
   // ---------- language dictionary ----------
   const I18N = {
     de: {
-      docTitle: "Signalüberlagerung",
+      docTitle: "Signalgenerator mit Frequenzanalyse",
       eyebrow: "8-Kanal-Signalgenerator",
-      h1: "Signalüberlagerung",
+      h1: "Signalgenerator mit Frequenzanalyse",
       introHtml: `Sechs Sinussignale, ein weißes Rauschen und ein DC-Offset <code class="formula">yᵢ(t) = Aᵢ · sin(2π·fᵢ·t + φᵢ)</code> einzeln einstellen und&nbsp;ihre Überlagerung live beobachten.`,
       selectSignal: "Signal auswählen:",
       btnOff: "Alles aus",
@@ -1088,6 +1124,7 @@
       layoutToggleHint: "Wechselt zwischen der Standardansicht (Kanäle zuerst, danach Summensignal/FFT) und Side-by-side (Kanäle auf der linken Seite, Summensignal und FFT untereinander auf der rechten Seite).",
       pdfButton: "PDF Export",
       pdfHint: "Öffnet den Druckdialog – dort als PDF speichern",
+      pdfFallbackNote: "Der Druckdialog konnte nicht automatisch geöffnet werden. Bitte Pop-ups für diese Seite erlauben und erneut versuchen, oder Strg+P (Cmd+P) in diesem Tab drücken.",
       active: "aktiv",
       modeFrequency: "Frequenzmodus",
       modeHarmonic: "Harmonischer Modus",
@@ -1135,13 +1172,20 @@
         statusInactive: "Inaktiv",
         sumHeading: "Summensignal",
         signalsHeading: "Einzelsignale",
+        fftHeading: "Frequenzspektrum",
+        paramCol: "Parameter",
+        valueCol: "Wert",
+        paramSampleRate: "Abtastrate (adaptiv)",
+        paramAnalysisDuration: "Analysedauer",
+        paramFreqRes: "Frequenzauflösung (Δf)",
+        paramDisplayRange: "Angezeigter Bereich",
         noiseLabel: "Rauschen, σ",
       },
     },
     en: {
-      docTitle: "Signal Superposition",
+      docTitle: "Signal Generator with Frequency Analysis",
       eyebrow: "8-Channel Signal Generator",
-      h1: "Signal Superposition",
+      h1: "Signal Generator with Frequency Analysis",
       introHtml: `Set six sine signals, one white-noise signal and one DC offset <code class="formula">yᵢ(t) = Aᵢ · sin(2π·fᵢ·t + φᵢ)</code> individually and watch their superposition live.`,
       selectSignal: "Select signal:",
       btnOff: "All off",
@@ -1164,6 +1208,7 @@
       layoutToggleHint: "Switches between the standard view (channels first, then sum signal/FFT) and side-by-side (channels on the left, sum signal and FFT stacked on the right).",
       pdfButton: "Export as PDF",
       pdfHint: "Opens the print dialog – choose Save as PDF there",
+      pdfFallbackNote: "The print dialog could not be opened automatically. Please allow pop-ups for this page and try again, or press Ctrl+P (Cmd+P) in this tab.",
       active: "active",
       modeFrequency: "Frequency Mode",
       modeHarmonic: "Harmonic Mode",
@@ -1211,6 +1256,13 @@
         statusInactive: "Inactive",
         sumHeading: "Sum signal",
         signalsHeading: "Individual signals",
+        fftHeading: "Frequency spectrum",
+        paramCol: "Parameter",
+        valueCol: "Value",
+        paramSampleRate: "Sample rate (adaptive)",
+        paramAnalysisDuration: "Analysis duration",
+        paramFreqRes: "Frequency resolution (Δf)",
+        paramDisplayRange: "Displayed range",
         noiseLabel: "Noise, σ",
       },
     },
@@ -1961,6 +2013,22 @@
   const printView = document.getElementById("print-view");
   const btnPdf = document.getElementById("btn-pdf");
 
+  // Temporarily grows a plot canvas to `multiplier`× its current on-screen
+  // height, redraws it (via the same drawFn used for live rendering, so it
+  // reads whatever data is already cached — no recomputation), captures a
+  // PNG snapshot, then restores the canvas to its normal size and redraws
+  // again. All synchronous, so the live page never visibly flickers.
+  function captureTallCanvasImage(canvas, drawFn, multiplier) {
+    const rect = canvas.getBoundingClientRect();
+    const originalInlineHeight = canvas.style.height;
+    canvas.style.height = Math.round(rect.height * multiplier) + "px";
+    drawFn();
+    const dataUrl = canvas.toDataURL("image/png");
+    canvas.style.height = originalInlineHeight;
+    drawFn();
+    return dataUrl;
+  }
+
   function buildPrintView() {
     const dict = I18N[currentLang];
     const pv = dict.pv;
@@ -1993,6 +2061,13 @@
     const sumImg = sumCanvas.toDataURL("image/png");
     const sumCaption = `${dict.statPeak}: ${statPeak.textContent} · ${dict.statRms}: ${statRms.textContent} · ${dict.statCrest}: ${statCrest.textContent} · ${dict.statThd}: ${statThd.textContent}`;
 
+    // The X-axis (time / frequency) reference is a separate row below the
+    // canvas in the live app, not something drawn onto the canvas itself —
+    // so it has to be carried over into the print report explicitly,
+    // reading the same labels currently shown on screen.
+    const sumAxisHint = `<div class="pv-axis-hint"><span>${axisStart.textContent}</span><span>${axisMid.textContent}</span><span>${axisEnd.textContent}</span></div>`;
+    const fftAxisHint = `<div class="pv-axis-hint"><span>${fftAxisStart.textContent}</span><span>${fftAxisMid.textContent}</span><span>${fftAxisEndInput.value}&nbsp;Hz</span></div>`;
+
     const signalsHtml = rows.map((r, i) => {
       const ch = state[i];
       const img = r.canvas.toDataURL("image/png");
@@ -2004,35 +2079,232 @@
         </figure>`;
     }).join("");
 
+    // Page 2: sum signal once more (for direct time-/frequency-domain
+    // comparison), then the spectrum plot with the parameters it was
+    // computed with — read live from the FFT controls/lastFFT so the
+    // report always reflects exactly what's currently configured.
+    const activeBtnLabel = (buttons) => {
+      const b = buttons.find((btn) => btn.classList.contains("active"));
+      return b ? b.textContent.trim() : "–";
+    };
+
+    // Page 2 has room to spare, so its sum-signal and spectrum plots are
+    // captured at double height for better legibility than the compact
+    // page-1 versions.
+    const sumImgTall = captureTallCanvasImage(sumCanvas, drawSumPlot, 2);
+    const fftImgTall = captureTallCanvasImage(fftCanvas, drawFFTPlot, 2);
+    const windowTypeLabel = fftWindowTypeSelect.selectedOptions[0]
+      ? fftWindowTypeSelect.selectedOptions[0].textContent
+      : "–";
+
+    const fftParamRows = [
+      [dict.fftLengthLabel, String(fftLength)],
+      [dict.fftWindowTypeLabel, windowTypeLabel],
+      [dict.fftWindowLenLabel, lastFFT ? `${lastFFT.L} / ${fftLength}` : `${fftWindowLength} / ${fftLength}`],
+      [dict.fftScaleLabel, activeBtnLabel(fftScaleButtons)],
+      [dict.fftAxisXLabel, activeBtnLabel(fftXButtons)],
+      [dict.fftAxisYLabel, activeBtnLabel(fftYButtons)],
+      [pv.paramSampleRate, lastFFT ? `${Math.round(lastFFT.fs)} Hz` : "–"],
+      [pv.paramAnalysisDuration, lastFFT ? `${lastFFT.analysisDuration.toFixed(1)} s` : "–"],
+      [pv.paramFreqRes, lastFFT ? `${lastFFT.freqStep.toFixed(2)} Hz` : "–"],
+      [pv.paramDisplayRange, lastFFT ? `${lastFFT.fMin.toFixed(1)} – ${lastFFT.fMax.toFixed(1)} Hz` : "–"],
+      [dict.fftStatPeakFreq, fftStatPeakFreq.textContent],
+      [dict.fftStatPeakAmp, fftStatPeakAmp.textContent],
+    ].map(([label, value]) => `<tr><td>${label}</td><td>${value}</td></tr>`).join("");
+
     printView.innerHTML = `
-      <h1>${dict.docTitle}</h1>
-      <p class="pv-meta">${pv.generated}: ${generatedStr} · ${pv.timeWindow}: ${timeWindowInput.value}&nbsp;s · ${pv.activePreset}: ${presetLabel}</p>
-      <section>
-        <h2>${pv.generalInfo}</h2>
-        <table>
-          <thead><tr>
-            <th>${pv.colSignal}</th><th>${pv.colAmplitude}</th><th>${pv.colFrequency}</th><th>${pv.colPhase}</th><th>${pv.colStatus}</th>
-          </tr></thead>
-          <tbody>${tableRowsHtml}</tbody>
-        </table>
-      </section>
-      <section>
-        <h2>${pv.sumHeading}</h2>
-        <figure class="pv-figure">
-          <img src="${sumImg}" alt="${pv.sumHeading}">
-          <figcaption>${sumCaption}</figcaption>
-        </figure>
-      </section>
-      <section>
-        <h2>${pv.signalsHeading}</h2>
-        <div class="pv-signals-grid">${signalsHtml}</div>
-      </section>
+      <div class="pv-page pv-page-1">
+        <h1>${dict.docTitle}</h1>
+        <p class="pv-meta">${pv.generated}: ${generatedStr} · ${pv.timeWindow}: ${timeWindowInput.value}&nbsp;s · ${pv.activePreset}: ${presetLabel}</p>
+        <section>
+          <h2>${pv.generalInfo}</h2>
+          <table>
+            <thead><tr>
+              <th>${pv.colSignal}</th><th>${pv.colAmplitude}</th><th>${pv.colFrequency}</th><th>${pv.colPhase}</th><th>${pv.colStatus}</th>
+            </tr></thead>
+            <tbody>${tableRowsHtml}</tbody>
+          </table>
+        </section>
+        <section>
+          <h2>${pv.sumHeading}</h2>
+          <figure class="pv-figure">
+            <img src="${sumImg}" alt="${pv.sumHeading}">
+            ${sumAxisHint}
+            <figcaption>${sumCaption}</figcaption>
+          </figure>
+        </section>
+        <section>
+          <h2>${pv.signalsHeading}</h2>
+          <div class="pv-signals-grid">${signalsHtml}</div>
+        </section>
+      </div>
+      <div class="pv-page pv-page-2">
+        <section>
+          <h2>${pv.sumHeading}</h2>
+          <figure class="pv-figure">
+            <img src="${sumImgTall}" alt="${pv.sumHeading}">
+            ${sumAxisHint}
+            <figcaption>${sumCaption}</figcaption>
+          </figure>
+        </section>
+        <section>
+          <h2>${pv.fftHeading}</h2>
+          <figure class="pv-figure">
+            <img src="${fftImgTall}" alt="${pv.fftHeading}">
+            ${fftAxisHint}
+          </figure>
+          <table class="pv-params-table">
+            <thead><tr><th>${pv.paramCol}</th><th>${pv.valueCol}</th></tr></thead>
+            <tbody>${fftParamRows}</tbody>
+          </table>
+        </section>
+      </div>
     `;
+  }
+
+  // Standalone stylesheet for the print document opened in its own tab (see
+  // openPrintDocument below). Mirrors the #print-view rules from the
+  // @media print block above, but unscoped — this document contains only
+  // the printable report, nothing that needs hiding.
+  const PRINT_DOC_CSS = `
+    * { box-sizing: border-box; }
+    body {
+      margin: 32px;
+      background: #ffffff;
+      color: #1a1a1a;
+      font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+    }
+    h1 { font-size: 22px; margin: 0 0 2px; }
+    .pv-meta {
+      font-family: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+      font-size: 11px;
+      color: #555;
+      margin: 0 0 20px;
+    }
+    h2 {
+      font-family: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+      font-size: 12px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      border-bottom: 1px solid #ccc;
+      padding-bottom: 6px;
+      margin: 26px 0 10px;
+    }
+    .pv-page section:first-of-type h2 { margin-top: 0; }
+    .pv-page-1 {
+      page-break-after: always;
+      break-after: page;
+    }
+    .pv-page-2 {
+      page-break-before: always;
+      break-before: page;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+      font-size: 11px;
+      margin-bottom: 8px;
+    }
+    th, td {
+      text-align: left;
+      padding: 5px 8px;
+      border-bottom: 1px solid #ddd;
+      font-variant-numeric: tabular-nums;
+    }
+    th { color: #555; font-weight: 600; }
+    tr.pv-off td { color: #999; }
+    .pv-figure { page-break-inside: avoid; break-inside: avoid; margin-bottom: 18px; }
+    .pv-figure img { width: 100%; max-width: 640px; display: block; border: 1px solid #ddd; }
+    .pv-figure figcaption {
+      font-family: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+      font-size: 10.5px;
+      color: #555;
+      margin-top: 4px;
+    }
+    .pv-axis-hint {
+      display: flex;
+      justify-content: space-between;
+      font-family: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+      font-size: 9.5px;
+      color: #888;
+      margin-top: 3px;
+    }
+    .pv-signals-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px 12px; }
+    .pv-signals-grid .pv-figure img { max-width: 100%; }
+    .pv-fallback-note {
+      display: none;
+      font-family: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+      font-size: 11.5px;
+      background: #fff7e6;
+      border: 1px solid #f0c36d;
+      border-radius: 6px;
+      padding: 8px 12px;
+      margin-bottom: 20px;
+    }
+    @media print {
+      body { margin: 0; }
+      .pv-fallback-note { display: none !important; }
+    }
+  `;
+
+  // Published artifacts run inside a sandboxed iframe, where a script-
+  // triggered window.print() on the embedding document is commonly blocked
+  // silently (no error, no dialog — "nothing happens"). Opening the report
+  // in its own top-level tab sidesteps that: the new tab is a normal,
+  // unsandboxed browsing context, so print() works there reliably. Falls
+  // back to in-place printing if the popup itself is blocked.
+  function openPrintDocument() {
+    const dict = I18N[currentLang];
+    const docHtml = `<!DOCTYPE html>
+<html lang="${currentLang}">
+<head>
+<meta charset="UTF-8">
+<title>${dict.docTitle}</title>
+<style>${PRINT_DOC_CSS}</style>
+</head>
+<body>
+<p class="pv-fallback-note" id="pv-fallback-note">${dict.pdfFallbackNote}</p>
+${printView.innerHTML}
+</body>
+</html>`;
+
+    let win = null;
+    try {
+      win = window.open("", "_blank");
+    } catch (e) {
+      win = null;
+    }
+
+    if (win) {
+      win.document.open();
+      win.document.write(docHtml);
+      win.document.close();
+      win.focus();
+      setTimeout(() => {
+        try {
+          win.print();
+        } catch (e) {
+          const note = win.document.getElementById("pv-fallback-note");
+          if (note) note.style.display = "block";
+        }
+      }, 150);
+      return;
+    }
+
+    // Popup blocked: fall back to the previous in-place behaviour.
+    setTimeout(() => {
+      try {
+        window.print();
+      } catch (e) {
+        /* no-op — user can still use their browser's own print/save-as-PDF shortcut */
+      }
+    }, 60);
   }
 
   btnPdf.addEventListener("click", () => {
     buildPrintView();
-    setTimeout(() => window.print(), 60);
+    openPrintDocument();
   });
 
   window.addEventListener("resize", () => {
@@ -2532,7 +2804,7 @@
 
     fftHint.textContent = `Δf = ${freqStep.toFixed(2)} Hz · fs = ${Math.round(fs)} Hz (adaptiv, 5×f_max) · T = ${analysisDuration.toFixed(1)} s · N = ${fftLength} · Fenster: ${L}/${fftLength}`;
 
-    lastFFT = { mags, freqStep, fs, half, fMin, fMax, yMin, yMax, dbFactor, magUnit };
+    lastFFT = { mags, freqStep, fs, half, fMin, fMax, yMin, yMax, dbFactor, magUnit, L, analysisDuration };
 
     drawFFTPlot();
   }
