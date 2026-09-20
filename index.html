@@ -1,0 +1,2751 @@
+<title>Signalüberlagerung</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  /* ---------------------------------------------------------------
+     Deliberate single (light) theme, per explicit request: a white
+     "measurement sheet" look — colored channel traces like pens on
+     paper, the sum trace inked in near-black. Background and every
+     color are painted explicitly. No dark-mode branch by design.
+  ----------------------------------------------------------------*/
+  :root {
+    --bg: #ffffff;
+    --panel: #f8f9fb;
+    --panel-2: #eef1f4;
+    --border: #dde2e8;
+    --border-soft: #e7ebef;
+    --text: #1a2027;
+    --text-dim: #5b6672;
+    --text-faint: #8c96a2;
+
+    --ch1: #0f9d78; /* teal */
+    --ch2: #d97706; /* amber */
+    --ch3: #dc2626; /* red */
+    --ch4: #2563eb; /* blue */
+    --ch5: #c026d3; /* fuchsia */
+    --ch6: #65a30d; /* olive */
+    --ch7: #475569; /* slate — cool grey for the noise channel */
+    --ch8: #78716c; /* stone — warm grey for the DC-offset channel */
+    --sum: #12161c;  /* near-black ink, stands apart from the seven hues */
+
+    --grid-line: #eef1f4;
+    --grid-line-strong: #d6dbe1;
+
+    --font-display: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+    --font-mono: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-display);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    padding: clamp(16px, 3vw, 40px);
+    display: flex;
+    justify-content: center;
+  }
+
+  main {
+    width: 100%;
+    max-width: 1180px;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+
+  /* ---------- Header ---------- */
+  header {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .header-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px 16px;
+  }
+
+  .header-text {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: none;
+  }
+
+  .header-actions .preset-btn {
+    padding: 6px 14px;
+    font-size: 11.5px;
+  }
+
+  .lang-switch {
+    display: flex;
+    gap: 4px;
+    flex: none;
+  }
+
+  .lang-btn {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--text-dim);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 5px 10px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+  }
+
+  .lang-btn:hover {
+    border-color: var(--sum);
+  }
+
+  .lang-btn:focus-visible {
+    outline: 2px solid var(--sum);
+    outline-offset: 2px;
+  }
+
+  .lang-btn.active {
+    background: var(--sum);
+    border-color: var(--sum);
+    color: var(--bg);
+  }
+
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+  }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(22px, 3vw, 30px);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+    color: var(--text);
+  }
+
+  header p {
+    margin: 4px 0 0;
+    max-width: 62ch;
+    color: var(--text-dim);
+    font-size: 14.5px;
+    line-height: 1.55;
+  }
+
+  code.formula {
+    font-family: var(--font-mono);
+    background: var(--panel-2);
+    border: 1px solid var(--border-soft);
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: var(--text);
+    font-size: 0.93em;
+  }
+
+  .byline {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+    font-size: 12.5px;
+    color: var(--text-faint);
+  }
+
+  .byline-link {
+    color: var(--sum);
+    text-decoration: underline;
+    text-decoration-color: var(--border);
+    text-underline-offset: 2px;
+    transition: text-decoration-color 0.15s ease;
+  }
+
+  .byline-link:hover,
+  .byline-link:focus-visible {
+    text-decoration-color: var(--sum);
+  }
+
+  .byline-link:focus-visible {
+    outline: 2px solid var(--sum);
+    outline-offset: 2px;
+  }
+
+  /* ---------- Toolbar ---------- */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px 14px;
+  }
+
+  .toolbar-label {
+    flex: 1 0 100%;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-dim);
+  }
+
+  .preset-group {
+    display: flex;
+    gap: 8px;
+  }
+
+  .preset-btn {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    color: var(--text);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 8px 16px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+  }
+
+  .preset-btn:hover {
+    border-color: var(--sum);
+    background: var(--panel-2);
+  }
+
+  .preset-btn:focus-visible {
+    outline: 2px solid var(--sum);
+    outline-offset: 2px;
+  }
+
+  .preset-btn.active {
+    background: var(--sum);
+    border-color: var(--sum);
+    color: var(--bg);
+  }
+
+  .toolbar-hint {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-faint);
+  }
+
+  .fft-zoom-out-btn {
+    margin-left: auto;
+    padding: 6px 12px;
+    font-size: 11px;
+  }
+
+  .fft-zoom-out-btn[hidden] {
+    display: none;
+  }
+
+  .axis-control {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-dim);
+    cursor: default;
+  }
+
+  .axis-control input[type="number"] {
+    width: 68px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    padding: 5px 6px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .axis-control input[type="number"]:focus {
+    outline: 2px solid var(--sum);
+    outline-offset: 1px;
+  }
+
+  .axis-control .unit {
+    color: var(--text-faint);
+  }
+
+  /* ---------- Overall layout: "Standard" vs. "Nebeneinander" ---------- */
+  /* Standard: both wrappers are display:contents, so .channels and the two
+     sum/fft <section>s behave exactly as if they were direct children of
+     <main> in document order — i.e. today's plain vertical stack. */
+  .main-layout {
+    display: contents;
+  }
+
+  .right-col {
+    display: contents;
+  }
+
+  /* Nebeneinander: a two-column grid — channels stacked on the left,
+     sum plot + FFT stacked on the right. */
+  .main-layout.side-by-side {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+    gap: 22px;
+  }
+
+  .main-layout.side-by-side .right-col {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+
+  .main-layout.side-by-side .channels {
+    grid-template-columns: 1fr;
+  }
+
+  /* ---------- Channels grid: 2 per row ---------- */
+  .channels {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px 14px;
+  }
+
+  .channel-row {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--ch-color, var(--border));
+    border-radius: 10px;
+    padding: 12px 14px;
+    display: grid;
+    grid-template-columns: minmax(200px, 240px) 1fr;
+    gap: 12px;
+    align-items: center;
+    transition: opacity 0.15s ease;
+    min-width: 0;
+  }
+
+  .channel-row.muted { opacity: 0.42; }
+
+  .channel-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .swatch {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--ch-color);
+    flex: none;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ch-color) 16%, transparent);
+  }
+
+  .channel-name {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--text);
+  }
+
+  .channel-type-tag {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    font-weight: 500;
+    color: var(--text-faint);
+    margin-left: 2px;
+  }
+
+  .mute-toggle {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .mute-toggle input {
+    appearance: none;
+    width: 26px;
+    height: 15px;
+    border-radius: 999px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    position: relative;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+    flex: none;
+  }
+
+  .mute-toggle input::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--text-faint);
+    transition: transform 0.15s ease, background 0.15s ease;
+  }
+
+  .mute-toggle input:checked {
+    background: color-mix(in srgb, var(--ch-color) 18%, var(--panel-2));
+    border-color: var(--ch-color);
+  }
+
+  .mute-toggle input:checked::after {
+    transform: translateX(11px);
+    background: var(--ch-color);
+  }
+
+  .channel-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .param {
+    display: grid;
+    grid-template-columns: 76px 1fr 64px;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .param label {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--text-dim);
+    letter-spacing: 0.02em;
+  }
+
+  .param input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--panel-2);
+    outline: none;
+  }
+
+  .param input[type="range"]::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 999px;
+    background: linear-gradient(to right, var(--ch-color) var(--fill, 0%), var(--panel-2) 0%);
+  }
+
+  .param input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 13px;
+    height: 13px;
+    margin-top: -4.5px;
+    border-radius: 50%;
+    background: var(--ch-color);
+    border: 2px solid var(--bg);
+    box-shadow: 0 0 0 1px var(--ch-color);
+    cursor: pointer;
+  }
+
+  .param input[type="range"]::-moz-range-track {
+    height: 4px;
+    border-radius: 999px;
+    background: var(--panel-2);
+  }
+
+  .param input[type="range"]::-moz-range-progress {
+    height: 4px;
+    border-radius: 999px;
+    background: var(--ch-color);
+  }
+
+  .param input[type="range"]::-moz-range-thumb {
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: var(--ch-color);
+    border: 2px solid var(--bg);
+  }
+
+  .param .numfield {
+    display: flex;
+    align-items: baseline;
+    justify-content: flex-end;
+    gap: 3px;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .param input[type="number"] {
+    width: 56px;
+    background: var(--bg);
+    border: 1px solid var(--border-soft);
+    border-radius: 5px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 3px 4px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .param input[type="number"]:focus,
+  .param input[type="range"]:focus-visible {
+    outline: 2px solid var(--ch-color);
+    outline-offset: 1px;
+  }
+
+  .channel-plot {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+  }
+
+  .channel-plot canvas {
+    width: 100%;
+    height: 82px;
+    display: block;
+    border-radius: 6px;
+    background: var(--bg);
+    border: 1px solid var(--border-soft);
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .channel-plot canvas:hover {
+    border-color: var(--ch-color);
+  }
+
+  .channel-plot canvas.highlighted {
+    border-color: var(--ch-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ch-color) 20%, transparent);
+  }
+
+  .channel-plot canvas:focus-visible {
+    outline: 2px solid var(--ch-color);
+    outline-offset: 2px;
+  }
+
+  .channel-eq {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+    padding-left: 2px;
+  }
+
+  .channel-eq b { color: var(--ch-color); font-weight: 600; }
+
+  /* ---------- Sum section ---------- */
+  .sum-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--sum);
+    border-radius: 10px;
+    padding: 18px 20px 16px;
+  }
+
+  .sum-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+
+  .sum-top h2 {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    font-weight: 500;
+    margin: 0;
+  }
+
+  .stat-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 20px;
+  }
+
+  .stat {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  .stat .stat-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+  }
+
+  .stat .stat-value {
+    font-family: var(--font-mono);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--sum);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .sum-panel canvas {
+    width: 100%;
+    height: 220px;
+    display: block;
+    border-radius: 8px;
+    background: var(--bg);
+    border: 1px solid var(--border-soft);
+  }
+
+  #fft-canvas {
+    cursor: crosshair;
+  }
+
+  .fft-canvas-wrap {
+    position: relative;
+  }
+
+  .fft-yunit-badge {
+    position: absolute;
+    top: 6px;
+    left: 40px; /* just right of the y-axis tick numbers (AXIS_MARGIN_LEFT) */
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-faint);
+    background: color-mix(in srgb, var(--bg) 75%, transparent);
+    padding: 0 3px;
+    pointer-events: none;
+  }
+
+  .axis-hint {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-faint);
+    margin-top: 5px;
+  }
+
+  .fft-axis-end-field {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 3px;
+  }
+
+  .fft-axis-end-field input[type="number"] {
+    width: 54px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-faint);
+    background: var(--bg);
+    border: 1px solid var(--border-soft);
+    border-radius: 4px;
+    padding: 1px 3px;
+    text-align: right;
+  }
+
+  .fft-axis-end-field input[type="number"]:focus,
+  .fft-axis-end-field input[type="number"]:hover {
+    color: var(--text);
+    border-color: var(--sum);
+    outline: none;
+  }
+
+  /* ---------- FFT / frequency-analysis panel ---------- */
+  .fft-panel {
+    margin-top: 4px;
+  }
+
+  .fft-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 14px 22px;
+    margin-bottom: 14px;
+  }
+
+  .fft-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .fft-field-label {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--text-dim);
+    letter-spacing: 0.02em;
+  }
+
+  .fft-field select {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 7px 10px;
+    cursor: pointer;
+    transition: border-color 0.15s ease;
+  }
+
+  .fft-field select:hover {
+    border-color: var(--sum);
+  }
+
+  .fft-field select:focus-visible {
+    outline: 2px solid var(--sum);
+    outline-offset: 1px;
+  }
+
+  .fft-window-param {
+    flex: 1 1 260px;
+    min-width: 220px;
+    /* the shared .param slider styling below keys off --ch-color, normally
+       set per channel row — here there's no channel, so give it the FFT
+       panel's own accent color to render as an active, filled slider */
+    --ch-color: var(--sum);
+  }
+
+  footer {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-faint);
+    text-align: center;
+    padding: 4px 0 8px;
+  }
+
+  @media (max-width: 760px) {
+    .channels { grid-template-columns: 1fr; }
+    .channel-row { grid-template-columns: 1fr; }
+    .channel-plot canvas { height: 72px; }
+    /* "Nebeneinander" needs real width for two columns — fall back to a
+       single column on narrow screens, same as the channels grid above */
+    .main-layout.side-by-side { grid-template-columns: 1fr; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+
+  /* ---------- Print / PDF export view ----------
+     Hidden on screen; only #print-view is shown when printing (the export
+     button fills it with a fresh report, then triggers window.print()). */
+  #print-view { display: none; }
+
+  @media print {
+    body { display: block; padding: 0; background: #ffffff; }
+    main#app > *:not(#print-view) { display: none !important; }
+    #print-view { display: block; max-width: none; }
+
+    #print-view h1 {
+      font-family: var(--font-display);
+      font-size: 22px;
+      margin: 0 0 2px;
+    }
+
+    #print-view .pv-meta {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: #555;
+      margin: 0 0 20px;
+    }
+
+    #print-view h2 {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      border-bottom: 1px solid #ccc;
+      padding-bottom: 6px;
+      margin: 26px 0 10px;
+    }
+
+    #print-view section:first-of-type h2 { margin-top: 0; }
+
+    #print-view table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      margin-bottom: 8px;
+    }
+
+    #print-view th, #print-view td {
+      text-align: left;
+      padding: 5px 8px;
+      border-bottom: 1px solid #ddd;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #print-view th { color: #555; font-weight: 600; }
+    #print-view tr.pv-off td { color: #999; }
+
+    #print-view .pv-figure {
+      page-break-inside: avoid;
+      break-inside: avoid;
+      margin-bottom: 18px;
+    }
+
+    #print-view .pv-figure img {
+      width: 100%;
+      max-width: 640px;
+      display: block;
+      border: 1px solid #ddd;
+    }
+
+    #print-view .pv-figure figcaption {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      color: #555;
+      margin-top: 4px;
+    }
+
+    #print-view .pv-signals-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    #print-view .pv-signals-grid .pv-figure img { max-width: 100%; }
+  }
+</style>
+
+<main id="app">
+  <header>
+    <div class="header-top">
+      <div class="header-text">
+        <div class="eyebrow" data-i18n="eyebrow">8-Kanal-Signalgenerator</div>
+        <h1 data-i18n="h1">Signalüberlagerung</h1>
+      </div>
+      <div class="header-actions">
+        <button type="button" class="preset-btn" id="layout-toggle-btn" data-i18n="layoutStandard">Standardansicht</button>
+        <button type="button" class="preset-btn" id="btn-pdf" data-i18n="pdfButton">PDF Export</button>
+        <div class="lang-switch" id="lang-switch">
+          <button type="button" class="lang-btn active" data-lang="de">DE</button>
+          <button type="button" class="lang-btn" data-lang="en">EN</button>
+        </div>
+      </div>
+    </div>
+    <p id="intro-text">
+      Sechs Sinussignale, ein weißes Rauschen und ein DC-Offset <code class="formula">yᵢ(t) = Aᵢ · sin(2π·fᵢ·t + φᵢ)</code>
+      einzeln einstellen und&nbsp;ihre Überlagerung live beobachten.
+    </p>
+    <div class="byline">
+      <span>Built with love, coffee and Claude by <a class="byline-link" href="https://de.linkedin.com/in/christianlindemann" target="_blank" rel="noopener noreferrer">Christian Lindemann</a>.</span>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <span class="toolbar-label" data-i18n="selectSignal">Signal auswählen:</span>
+    <button type="button" class="preset-btn" id="mode-toggle-btn" data-i18n="modeFrequency">Frequenzmodus</button>
+    <div class="preset-group">
+      <button type="button" class="preset-btn" data-preset="aus" data-i18n="btnOff">Alles aus</button>
+      <button type="button" class="preset-btn" data-preset="sinus" data-i18n="btnSine">Sinus</button>
+      <button type="button" class="preset-btn" data-preset="rechteck" data-i18n="btnSquare">Rechteck</button>
+      <button type="button" class="preset-btn" data-preset="dreieck" data-i18n="btnTriangle">Dreieck</button>
+    </div>
+    <span class="toolbar-hint" id="preset-hint">Signalform wählen, um die Kanäle 1–6 automatisch zu belegen.</span>
+  </div>
+
+  <div class="toolbar">
+    <span class="toolbar-label" id="time-window-label" data-i18n="timeWindowLabel">Zeitfenster (X-Achse)</span>
+    <div class="preset-group">
+      <button type="button" class="preset-btn" data-time-window="0.01">10 ms</button>
+      <button type="button" class="preset-btn" data-time-window="0.016667" data-i18n="timeWin60">16,67 ms (60 Hz)</button>
+      <button type="button" class="preset-btn" data-time-window="0.02" data-i18n="timeWin50">20 ms (50 Hz)</button>
+      <button type="button" class="preset-btn" data-time-window="0.1">100 ms</button>
+      <button type="button" class="preset-btn" data-time-window="1">1 s</button>
+      <button type="button" class="preset-btn active" data-time-window="2">2 s</button>
+      <button type="button" class="preset-btn" data-time-window="5">5 s</button>
+    </div>
+    <div class="axis-control">
+      <input type="number" id="time-window-input" min="0.001" max="10" step="0.001" value="2" aria-labelledby="time-window-label">
+      <span class="unit">s</span>
+    </div>
+    <span class="toolbar-hint" data-i18n="timeWindowHint">Gilt für alle Plots inkl. Summensignal · Bereich 1&nbsp;ms – 10&nbsp;s</span>
+  </div>
+
+  <div class="main-layout" id="main-layout">
+  <section class="channels" id="channels"></section>
+
+  <div class="right-col" id="right-col">
+  <section class="sum-panel">
+    <div class="sum-top">
+      <h2 id="sum-title">Summensignal — y(t) = Σ yᵢ(t)</h2>
+      <div class="stat-group">
+        <div class="stat">
+          <span class="stat-label" data-i18n="statPeak">Spitzenwert</span>
+          <span class="stat-value" id="stat-peak">–</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label" data-i18n="statRms">Effektivwert</span>
+          <span class="stat-value" id="stat-rms">–</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label" data-i18n="statCrest">Crest-Faktor</span>
+          <span class="stat-value" id="stat-crest">–</span>
+        </div>
+        <div class="stat" id="stat-thd-group">
+          <span class="stat-label" data-i18n="statThd" title="Total Harmonic Distortion">THD</span>
+          <span class="stat-value" id="stat-thd">–</span>
+        </div>
+      </div>
+    </div>
+    <canvas id="sum-canvas"></canvas>
+    <div class="axis-hint">
+      <span id="axis-start">0 s</span>
+      <span id="axis-mid">1 s</span>
+      <span id="axis-end">2 s</span>
+    </div>
+  </section>
+
+  <section class="sum-panel fft-panel">
+    <div class="sum-top">
+      <h2 data-i18n="fftTitle">Frequenzanalyse — FFT des Summensignals</h2>
+      <div class="stat-group">
+        <div class="stat">
+          <span class="stat-label" data-i18n="fftStatPeakFreq">Peak-Frequenz</span>
+          <span class="stat-value" id="fft-stat-peak-freq">–</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label" data-i18n="fftStatPeakAmp">Peak-Amplitude</span>
+          <span class="stat-value" id="fft-stat-peak-amp">–</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="fft-controls">
+      <div class="fft-field">
+        <span class="fft-field-label" data-i18n="fftLengthLabel">FFT-Länge</span>
+        <select id="fft-length-select"></select>
+      </div>
+
+      <div class="param fft-window-param">
+        <label for="fft-window-len-range" id="fft-window-len-label" data-i18n="fftWindowLenLabel">Fensterlänge</label>
+        <input type="range" id="fft-window-len-range" min="8" max="2048" step="1" value="2048">
+        <span class="numfield"><input type="number" id="fft-window-len-num" min="8" max="2048" step="1" value="2048"></span>
+      </div>
+
+      <div class="fft-field">
+        <span class="fft-field-label" data-i18n="fftWindowTypeLabel">Fenster</span>
+        <select id="fft-window-type-select"></select>
+      </div>
+
+      <div class="fft-field">
+        <span class="fft-field-label" data-i18n="fftScaleLabel">Skalierung</span>
+        <div class="preset-group" id="fft-scale-group">
+          <button type="button" class="preset-btn active" data-scale="linear" data-i18n="btnLinear">Linear</button>
+          <button type="button" class="preset-btn" data-scale="rms" data-i18n="fftScaleRms">RMS</button>
+          <button type="button" class="preset-btn" data-scale="psd" data-i18n="fftScalePsd">PSD</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="fft-controls">
+      <div class="fft-field">
+        <span class="fft-field-label" data-i18n="fftAxisXLabel">X-Achse</span>
+        <div class="preset-group" id="fft-xaxis-group">
+          <button type="button" class="preset-btn active" data-xscale="lin" data-i18n="btnLinear">Linear</button>
+          <button type="button" class="preset-btn" data-xscale="log" data-i18n="btnLog">Log</button>
+        </div>
+      </div>
+      <div class="fft-field">
+        <span class="fft-field-label" data-i18n="fftAxisYLabel">Y-Achse</span>
+        <div class="preset-group" id="fft-yaxis-group">
+          <button type="button" class="preset-btn active" data-yscale="lin" data-i18n="btnLinear">Linear</button>
+          <button type="button" class="preset-btn" data-yscale="log" data-i18n="btnLog">Log</button>
+        </div>
+      </div>
+      <span class="toolbar-hint" id="fft-hint"></span>
+      <button type="button" class="preset-btn fft-zoom-out-btn" id="fft-zoom-out-btn" data-i18n="fftZoomOut" hidden>Zoom aus</button>
+    </div>
+
+    <div class="fft-canvas-wrap">
+      <canvas id="fft-canvas"></canvas>
+      <span class="fft-yunit-badge" id="fft-yunit-badge">V</span>
+    </div>
+    <div class="axis-hint">
+      <span id="fft-axis-start">0 Hz</span>
+      <span id="fft-axis-mid">1000 Hz</span>
+      <span class="fft-axis-end-field" title="Maximalfrequenz der X-Achse eingeben und Enter drücken, um bis dorthin zu zoomen (0 Hz bis zum eingegebenen Wert) — wie beim Klick-und-Zieh-Zoom.">
+        <input type="number" id="fft-axis-end-input" min="0" step="1" value="2000">
+        <span>Hz</span>
+      </span>
+    </div>
+  </section>
+  </div>
+  </div>
+
+  <footer data-i18n="footer">Aktive Kanäle über den Schalter je Zeile ein-/ausblenden · Klick auf ein Einzelsignal blendet es farbig im Summenplot ein</footer>
+
+  <div id="print-view"></div>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  const TIME_MIN = 0.001;      // 1 ms — shortest selectable time window
+  const TIME_MAX = 10;         // 10 s — longest selectable time window
+  const TIME_DEFAULT = 2;      // 2 s — default time window, shared by every plot
+  const SAMPLE_RATE = 4000;    // samples/second target, keeps curves smooth up to FREQ_MAX
+  const SAMPLES_MIN = 300;     // floor so very short windows still render a smooth curve
+  const SAMPLES_MAX = 1048576; // 2^20 — ceiling; currently never binds, see note at setTimeWindow()
+  const AMP_MAX = 10;        // slider ceiling, also the fixed y-range of mini plots
+  const FREQ_MAX = 200;      // slider ceiling for frequency
+  const FREQ_STEP = 1;       // Hz per click/step
+
+  // The FFT panel analyzes its own dedicated signal buffer, decoupled from
+  // the sum/channel plots' time window: sample rate adapts to the actual
+  // frequency content of Signals 1–6 (5× the highest one currently set, so
+  // it comfortably satisfies Nyquist), and the analyzed duration is always
+  // the full 10 s maximum — giving a constant, fine Δf regardless of
+  // whatever time window happens to be selected for the plots.
+  const FFT_RATE_MULT = 5;
+  const FFT_ANALYSIS_DURATION = TIME_MAX; // 10 s
+
+  const NOISE_MIN = 0.01; // std-dev slider floor
+  const NOISE_MAX = 10;   // std-dev slider ceiling
+  const NOISE_STEP = 0.01; // fine enough that the whole 0.01–10 range is reachable
+  const DC_MIN = -10;
+  const DC_MAX = 10;
+  const DC_STEP = 0.1;
+  const CHANNEL_COLORS = ["--ch1", "--ch2", "--ch3", "--ch4", "--ch5", "--ch6", "--ch7", "--ch8"];
+  const DEFAULTS = [
+    { a: 2.0, f: 5,   p: 0   },
+    { a: 1.2, f: 12,  p: 45  },
+    { a: 1.6, f: 20,  p: 90  },
+    { a: 0.8, f: 35,  p: 180 },
+    { a: 0.6, f: 50,  p: 270 },
+    { a: 0.5, f: 80,  p: 135 },
+    { a: 1.0, f: 0,   p: 0,   noise: true, on: false }, // Signal 7: white noise, "a" holds the std-dev σ; off by default
+    { a: 0,   f: 0,   p: 0,   dc: true,    on: false }, // Signal 8: DC offset, "a" holds the offset voltage; off by default
+  ];
+
+  // ---------- language dictionary ----------
+  const I18N = {
+    de: {
+      docTitle: "Signalüberlagerung",
+      eyebrow: "8-Kanal-Signalgenerator",
+      h1: "Signalüberlagerung",
+      introHtml: `Sechs Sinussignale, ein weißes Rauschen und ein DC-Offset <code class="formula">yᵢ(t) = Aᵢ · sin(2π·fᵢ·t + φᵢ)</code> einzeln einstellen und&nbsp;ihre Überlagerung live beobachten.`,
+      selectSignal: "Signal auswählen:",
+      btnOff: "Alles aus",
+      btnSine: "Sinus",
+      btnSquare: "Rechteck",
+      btnTriangle: "Dreieck",
+      presetDefaultHint: "Signalform wählen, um die Kanäle 1–6 automatisch zu belegen.",
+      presetOffHint: "Alle Kanäle deaktiviert.",
+      presetHints: {
+        sinus: "Kanäle 1–6: 1 Hz, Amplitude 1, Phase 0°",
+        rechteck: "Ungeradzahlige Harmonische n = 1, 3, 5, 7, 9, 11 · fₙ = n·f₀ · Aₙ = A₁/n (f₀ = 1 Hz, A₁ = 10)",
+        dreieck: "Ungeradzahlige Harmonische k = 0…5, alternierendes Vorzeichen · fₖ = (2k+1)·f₀ · Aₖ = (-1)ᵏ·A₁/(2k+1)² (f₀ = 1 Hz, A₁ = 10)",
+      },
+      timeWindowLabel: "Zeitfenster (X-Achse)",
+      timeWindowHint: "Gilt für alle Plots inkl. Summensignal · Bereich 1 ms – 10 s",
+      timeWin50: "20 ms (50 Hz)",
+      timeWin60: "16,67 ms (60 Hz)",
+      layoutStandard: "Standardansicht",
+      layoutSide: "Side-by-side",
+      layoutToggleHint: "Wechselt zwischen der Standardansicht (Kanäle zuerst, danach Summensignal/FFT) und Side-by-side (Kanäle auf der linken Seite, Summensignal und FFT untereinander auf der rechten Seite).",
+      pdfButton: "PDF Export",
+      pdfHint: "Öffnet den Druckdialog – dort als PDF speichern",
+      active: "aktiv",
+      modeFrequency: "Frequenzmodus",
+      modeHarmonic: "Harmonischer Modus",
+      paramAmplitude: "Ampl. [V]",
+      paramFrequency: "Freq. [Hz]",
+      paramHarmonic: "Harmonische [× f₁]",
+      paramPhase: "Phase [°]",
+      paramStdDev: "Standard-abweichung [V]",
+      noiseTag: "Rauschen",
+      paramDcOffset: "DC-Offset [V]",
+      sumTitle: "Summensignal — y(t) = Σ yᵢ(t)",
+      statPeak: "Spitzenwert",
+      statRms: "Effektivwert",
+      statCrest: "Crest-Faktor",
+      statThd: "THD",
+      footer: "Aktive Kanäle über den Schalter je Zeile ein-/ausblenden · Klick auf ein Einzelsignal blendet es farbig im Summenplot ein",
+      canvasTitle: "Klicken, um dieses Signal farbig im Summenplot einzublenden",
+      fftTitle: "Frequenzanalyse — FFT des Summensignals",
+      fftStatPeakFreq: "Peak-Frequenz",
+      fftStatPeakAmp: "Peak-Amplitude",
+      fftLengthLabel: "FFT-Länge",
+      fftWindowLenLabel: "Fensterlänge",
+      fftWindowLenHint: "Fensterlänge = tatsächlich ausgewertete Signaldauer; der Rest bis zur FFT-Länge wird mit Nullen aufgefüllt.\nKleiner: gröbere echte Auflösung (Hauptkeule ≈1,44×fs/L bei Hann) und mehr Leckage – zusätzliche Bins durch N sind nur Interpolation.\n100 % (= FFT-Länge): beste erreichbare Auflösung für die gewählte FFT-Länge, kein Zero-Padding.",
+      fftWindowTypeLabel: "Fenster",
+      fftScaleLabel: "Skalierung",
+      fftScaleRms: "RMS",
+      fftScalePsd: "PSD",
+      fftAxisXLabel: "X-Achse",
+      fftAxisYLabel: "Y-Achse",
+      btnLinear: "Linear",
+      btnLog: "Log",
+      fftZoomOut: "Zoom aus",
+      pv: {
+        generalInfo: "Allgemeine Informationen",
+        generated: "Erstellt am",
+        timeWindow: "Zeitfenster",
+        activePreset: "Zuletzt gewählte Signalform",
+        noPreset: "manuell / gemischt",
+        colSignal: "Signal",
+        colAmplitude: "Amplitude (V)",
+        colFrequency: "Frequenz (Hz)",
+        colPhase: "Phase (°)",
+        colStatus: "Status",
+        statusActive: "Aktiv",
+        statusInactive: "Inaktiv",
+        sumHeading: "Summensignal",
+        signalsHeading: "Einzelsignale",
+        noiseLabel: "Rauschen, σ",
+      },
+    },
+    en: {
+      docTitle: "Signal Superposition",
+      eyebrow: "8-Channel Signal Generator",
+      h1: "Signal Superposition",
+      introHtml: `Set six sine signals, one white-noise signal and one DC offset <code class="formula">yᵢ(t) = Aᵢ · sin(2π·fᵢ·t + φᵢ)</code> individually and watch their superposition live.`,
+      selectSignal: "Select signal:",
+      btnOff: "All off",
+      btnSine: "Sine",
+      btnSquare: "Square",
+      btnTriangle: "Triangle",
+      presetDefaultHint: "Choose a waveform to set channels 1–6 automatically.",
+      presetOffHint: "All channels deactivated.",
+      presetHints: {
+        sinus: "Channels 1–6: 1 Hz, amplitude 1, phase 0°",
+        rechteck: "Odd harmonics n = 1, 3, 5, 7, 9, 11 · fₙ = n·f₀ · Aₙ = A₁/n (f₀ = 1 Hz, A₁ = 10)",
+        dreieck: "Odd harmonics k = 0…5, alternating sign · fₖ = (2k+1)·f₀ · Aₖ = (-1)ᵏ·A₁/(2k+1)² (f₀ = 1 Hz, A₁ = 10)",
+      },
+      timeWindowLabel: "Time window (X-axis)",
+      timeWindowHint: "Applies to all plots incl. the sum signal · Range 1 ms – 10 s",
+      timeWin50: "20 ms (50 Hz)",
+      timeWin60: "16.67 ms (60 Hz)",
+      layoutStandard: "Standard view",
+      layoutSide: "Side-by-side",
+      layoutToggleHint: "Switches between the standard view (channels first, then sum signal/FFT) and side-by-side (channels on the left, sum signal and FFT stacked on the right).",
+      pdfButton: "Export as PDF",
+      pdfHint: "Opens the print dialog – choose Save as PDF there",
+      active: "active",
+      modeFrequency: "Frequency Mode",
+      modeHarmonic: "Harmonic Mode",
+      paramAmplitude: "Ampl. [V]",
+      paramFrequency: "Freq. [Hz]",
+      paramHarmonic: "Harmonic [× f₁]",
+      paramPhase: "Phase [°]",
+      paramStdDev: "Standard deviation [V]",
+      noiseTag: "Noise",
+      paramDcOffset: "DC Offset [V]",
+      sumTitle: "Sum signal — y(t) = Σ yᵢ(t)",
+      statPeak: "Peak value",
+      statRms: "RMS value",
+      statCrest: "Crest factor",
+      statThd: "THD",
+      footer: "Toggle a channel active with the switch in its row · Click a single signal to overlay it in color on the sum plot",
+      canvasTitle: "Click to overlay this signal in color on the sum plot",
+      fftTitle: "Frequency Analysis — FFT of the Sum Signal",
+      fftStatPeakFreq: "Peak frequency",
+      fftStatPeakAmp: "Peak amplitude",
+      fftLengthLabel: "FFT length",
+      fftWindowLenLabel: "Window length",
+      fftWindowLenHint: "Window length = signal duration actually analyzed; the rest up to the FFT length is zero-padded.\nSmaller: coarser true resolution (main lobe ≈1.44×fs/L for Hann) and more leakage – extra bins from N are just interpolation.\n100% (= FFT length): best achievable resolution for the chosen FFT length, no zero-padding.",
+      fftWindowTypeLabel: "Window",
+      fftScaleLabel: "Scaling",
+      fftScaleRms: "RMS",
+      fftScalePsd: "PSD",
+      fftAxisXLabel: "X-axis",
+      fftAxisYLabel: "Y-axis",
+      btnLinear: "Linear",
+      btnLog: "Log",
+      fftZoomOut: "Zoom out",
+      pv: {
+        generalInfo: "General information",
+        generated: "Generated on",
+        timeWindow: "Time window",
+        activePreset: "Last selected waveform",
+        noPreset: "manual / mixed",
+        colSignal: "Signal",
+        colAmplitude: "Amplitude (V)",
+        colFrequency: "Frequency (Hz)",
+        colPhase: "Phase (°)",
+        colStatus: "Status",
+        statusActive: "Active",
+        statusInactive: "Inactive",
+        sumHeading: "Sum signal",
+        signalsHeading: "Individual signals",
+        noiseLabel: "Noise, σ",
+      },
+    },
+  };
+  let currentLang = "de";
+
+  const root = getComputedStyle(document.documentElement);
+  const colorOf = (i) => root.getPropertyValue(CHANNEL_COLORS[i]).trim();
+
+  const channelsEl = document.getElementById("channels");
+  const state = DEFAULTS.map((d) => ({ ...d, on: d.on !== undefined ? d.on : true, highlight: false }));
+
+  // ---------- build channel rows ----------
+  const rows = state.map((ch, i) => {
+    const color = colorOf(i);
+    const row = document.createElement("div");
+    row.className = "channel-row" + (ch.noise ? " noise-row" : "") + (ch.dc ? " dc-row" : "");
+    row.style.setProperty("--ch-color", color);
+
+    const controlsHtml = ch.noise ? `
+          <div class="param">
+            <label for="a-${i}" data-i18n="paramStdDev">Standard-abweichung [V]</label>
+            <input type="range" id="a-${i}" min="${NOISE_MIN}" max="${NOISE_MAX}" step="${NOISE_STEP}" value="${ch.a}" data-role="a">
+            <span class="numfield"><input type="number" min="${NOISE_MIN}" max="${NOISE_MAX}" step="${NOISE_STEP}" value="${ch.a.toFixed(2)}" data-role="a-num"></span>
+          </div>` : ch.dc ? `
+          <div class="param">
+            <label for="a-${i}" data-i18n="paramDcOffset">DC-Offset [V]</label>
+            <input type="range" id="a-${i}" min="${DC_MIN}" max="${DC_MAX}" step="${DC_STEP}" value="${ch.a}" data-role="a">
+            <span class="numfield"><input type="number" min="${DC_MIN}" max="${DC_MAX}" step="${DC_STEP}" value="${ch.a.toFixed(1)}" data-role="a-num"></span>
+          </div>` : `
+          <div class="param">
+            <label for="a-${i}" data-i18n="paramAmplitude">Ampl. [V]</label>
+            <input type="range" id="a-${i}" min="0" max="${AMP_MAX}" step="0.1" value="${ch.a}" data-role="a">
+            <span class="numfield"><input type="number" min="0" max="${AMP_MAX}" step="0.1" value="${ch.a.toFixed(1)}" data-role="a-num"></span>
+          </div>
+          <div class="param">
+            <label for="f-${i}" data-i18n="paramFrequency" data-role="f-label">Freq. [Hz]</label>
+            <input type="range" id="f-${i}" min="0" max="${FREQ_MAX}" step="${FREQ_STEP}" value="${ch.f}" data-role="f">
+            <span class="numfield"><input type="number" min="0" max="${FREQ_MAX}" step="0.1" value="${ch.f.toFixed(1)}" data-role="f-num"></span>
+          </div>
+          <div class="param">
+            <label for="p-${i}" data-i18n="paramPhase">Phase [°]</label>
+            <input type="range" id="p-${i}" min="0" max="360" step="1" value="${ch.p}" data-role="p">
+            <span class="numfield"><input type="number" min="0" max="360" step="1" value="${ch.p}" data-role="p-num"></span>
+          </div>`;
+
+    row.innerHTML = `
+      <div>
+        <div class="channel-head">
+          <span class="swatch"></span>
+          <span class="channel-name">Signal ${i + 1}</span>
+          ${ch.noise ? `<span class="channel-type-tag" data-i18n="noiseTag">Rauschen</span>` : ""}
+          ${ch.dc ? `<span class="channel-type-tag">DC</span>` : ""}
+          <label class="mute-toggle">
+            <span data-i18n="active">aktiv</span>
+            <input type="checkbox" ${ch.on ? "checked" : ""} data-role="on">
+          </label>
+        </div>
+        <div class="channel-controls">${controlsHtml}
+        </div>
+      </div>
+      <div class="channel-plot">
+        <canvas data-role="canvas"></canvas>
+        <div class="channel-eq" data-role="eq"></div>
+      </div>
+    `;
+    channelsEl.appendChild(row);
+
+    return {
+      row,
+      color,
+      canvas: row.querySelector('[data-role="canvas"]'),
+      eq: row.querySelector('[data-role="eq"]'),
+      onToggle: row.querySelector('[data-role="on"]'),
+      aRange: row.querySelector('#a-' + i),
+      aNum: row.querySelector('[data-role="a-num"]'),
+      fRange: row.querySelector('#f-' + i),
+      fNum: row.querySelector('[data-role="f-num"]'),
+      fLabel: row.querySelector('[data-role="f-label"]'),
+      pRange: row.querySelector('#p-' + i),
+      pNum: row.querySelector('[data-role="p-num"]'),
+    };
+  });
+
+  const sumCanvas = document.getElementById("sum-canvas");
+  const statPeak = document.getElementById("stat-peak");
+  const statRms = document.getElementById("stat-rms");
+  const statCrest = document.getElementById("stat-crest");
+  const statThd = document.getElementById("stat-thd");
+  const axisStart = document.getElementById("axis-start");
+  const axisMid = document.getElementById("axis-mid");
+  const axisEnd = document.getElementById("axis-end");
+  const timeWindowInput = document.getElementById("time-window-input");
+
+  // ---------- math ----------
+  // One shared time window drives every plot (mini + sum). Sample count scales
+  // with the window so curves stay smooth whether showing 1 ms or 10 s.
+  let timeWindow = TIME_DEFAULT;
+  let nSamples = 0;
+  let timeAxis = null;
+  let noiseBase = null; // fixed unit-variance Gaussian samples for the noise channel
+  let harmonicMode = false; // false = Frequency Mode (default), true = Harmonic Mode
+
+  // In Harmonic Mode, Signal 1 stays the base frequency f1; the "f" value of
+  // Signals 2–6 is reinterpreted as a harmonic multiplier n, so the actual
+  // frequency used for synthesis becomes n · f1. Signal 1 itself, and the
+  // noise/DC channels, are unaffected.
+  function effectiveFrequency(ch) {
+    if (ch.noise || ch.dc) return 0;
+    const idx = state.indexOf(ch);
+    return harmonicMode && idx > 0 ? ch.f * state[0].f : ch.f;
+  }
+
+  function buildTimeAxis(tWindow, count) {
+    const axis = new Float64Array(count);
+    for (let n = 0; n < count; n++) axis[n] = (n / (count - 1)) * tWindow;
+    return axis;
+  }
+
+  // Box-Muller transform: standard-normal (mean 0, std 1) random sample
+  function gaussianRandom() {
+    let u = 0, v = 0;
+    while (u === 0) u = Math.random();
+    while (v === 0) v = Math.random();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+
+  function buildNoiseBase(count) {
+    const arr = new Float64Array(count);
+    for (let n = 0; n < count; n++) arr[n] = gaussianRandom();
+    return arr;
+  }
+
+  function setTimeWindow(tWindow) {
+    timeWindow = Math.min(TIME_MAX, Math.max(TIME_MIN, tWindow));
+    // NOTE: with TIME_MAX=10 and SAMPLE_RATE=4000, timeWindow*SAMPLE_RATE
+    // never exceeds 40000 — so SAMPLES_MAX only becomes a real ceiling if
+    // TIME_MAX and/or SAMPLE_RATE are raised too. See performance analysis
+    // in the conversation that set SAMPLES_MAX to 2^20 for why that combination
+    // was deliberately not done here (renderAll() would go from ~26 ms to
+    // >1 s per interaction at ~10^6 samples).
+    nSamples = Math.min(SAMPLES_MAX, Math.max(SAMPLES_MIN, Math.round(timeWindow * SAMPLE_RATE)));
+    timeAxis = buildTimeAxis(timeWindow, nSamples);
+    // regenerated only when the sample count changes (time window), not on
+    // every render — so moving the σ slider rescales the same noise shape
+    // instead of rerolling it, matching how the sine channels behave when
+    // their amplitude is adjusted
+    noiseBase = buildNoiseBase(nSamples);
+  }
+  setTimeWindow(TIME_DEFAULT);
+
+  function computeSeries(ch, timeAxis, nSamples, noiseArr) {
+    const out = new Float64Array(nSamples);
+    if (!ch.on) return out;
+    if (ch.noise) {
+      const src = noiseArr || noiseBase;
+      for (let n = 0; n < nSamples; n++) out[n] = src[n] * ch.a;
+      return out;
+    }
+    if (ch.dc) {
+      out.fill(ch.a);
+      return out;
+    }
+    const w = 2 * Math.PI * effectiveFrequency(ch);
+    const phi = (ch.p * Math.PI) / 180;
+    for (let n = 0; n < nSamples; n++) {
+      out[n] = ch.a * Math.sin(w * timeAxis[n] + phi);
+    }
+    return out;
+  }
+
+  // ---------- canvas drawing ----------
+  function prepCanvas(canvas) {
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    const w = Math.max(1, Math.round(rect.width));
+    const h = Math.max(1, Math.round(rect.height));
+    if (canvas.width !== w * dpr || canvas.height !== h * dpr) {
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+    }
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    return { ctx, w, h };
+  }
+
+  const cssVarCache = {};
+  function getCssVar(name) {
+    if (!cssVarCache[name]) cssVarCache[name] = root.getPropertyValue(name).trim();
+    return cssVarCache[name];
+  }
+
+  const AXIS_MARGIN_LEFT = 34;  // reserved for y-axis tick labels, shared by all plots
+  const AXIS_MARGIN_RIGHT = 6;
+  const AXIS_MARGIN_V = 7;      // top/bottom padding so edge tick labels don't clip
+  const AXIS_FONT = "9px 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace";
+  const Y_DIVISIONS = 4; // 5 tick labels: min, mid-low, 0(ish), mid-high, max
+
+  function computePlotRect(w, h) {
+    return {
+      x0: AXIS_MARGIN_LEFT,
+      y0: AXIS_MARGIN_V,
+      w: Math.max(1, w - AXIS_MARGIN_LEFT - AXIS_MARGIN_RIGHT),
+      h: Math.max(1, h - AXIS_MARGIN_V * 2),
+    };
+  }
+
+  function formatTick(v) {
+    if (Math.abs(v) < 1e-9) return "0";
+    const r1 = Math.round(v * 10) / 10;
+    if (Math.abs(r1 - Math.round(r1)) < 1e-9) return String(Math.round(r1));
+    return r1.toFixed(1);
+  }
+
+  function drawGrid(ctx, rect, yMin, yMax, tWindow) {
+    const { x0, y0, w, h } = rect;
+
+    // vertical (time) gridlines — 5 evenly spaced divisions across the window
+    ctx.strokeStyle = getCssVar("--grid-line");
+    ctx.lineWidth = 1;
+    const tStep = tWindow / 5;
+    for (let t = 0; t <= tWindow + 1e-9; t += tStep) {
+      const x = x0 + (t / tWindow) * w;
+      ctx.beginPath();
+      ctx.moveTo(x + 0.5, y0);
+      ctx.lineTo(x + 0.5, y0 + h);
+      ctx.stroke();
+    }
+
+    // horizontal (value) gridlines + y-axis tick labels
+    ctx.font = AXIS_FONT;
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    const yStep = (yMax - yMin) / Y_DIVISIONS;
+    for (let i = 0; i <= Y_DIVISIONS; i++) {
+      const val = yMax - i * yStep;
+      const y = y0 + ((yMax - val) / (yMax - yMin)) * h;
+      const isZero = Math.abs(val) < 1e-9;
+      ctx.strokeStyle = isZero ? getCssVar("--grid-line-strong") : getCssVar("--grid-line");
+      ctx.beginPath();
+      ctx.moveTo(x0, y + 0.5);
+      ctx.lineTo(x0 + w, y + 0.5);
+      ctx.stroke();
+      ctx.fillStyle = getCssVar("--text-faint");
+      ctx.fillText(formatTick(val), x0 - 6, Math.min(Math.max(y, 5), y0 + h - 1));
+    }
+
+    // axis spine
+    ctx.strokeStyle = getCssVar("--grid-line-strong");
+    ctx.beginPath();
+    ctx.moveTo(x0 + 0.5, y0);
+    ctx.lineTo(x0 + 0.5, y0 + h);
+    ctx.stroke();
+  }
+
+  function drawTrace(ctx, rect, series, nSamples, yMin, yMax, color, lineWidth) {
+    const { x0, y0, w, h } = rect;
+    ctx.beginPath();
+    for (let n = 0; n < nSamples; n++) {
+      const x = x0 + (n / (nSamples - 1)) * w;
+      const y = y0 + h - ((series[n] - yMin) / (yMax - yMin)) * h;
+      if (n === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lineWidth;
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    ctx.stroke();
+  }
+
+  // shared hover-crosshair renderer for the sum-signal and FFT plots: a
+  // dashed line from the curve point down to the x-axis, a dot at the
+  // point, and a small floating label box (clamped inside the plot rect
+  // so it never gets clipped at the canvas edge).
+  function drawHoverMarker(ctx, rect, xPix, yPix, labelLines) {
+    const x = Math.min(Math.max(xPix, rect.x0), rect.x0 + rect.w);
+    ctx.save();
+
+    ctx.strokeStyle = getCssVar("--text-faint");
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(x + 0.5, yPix);
+    ctx.lineTo(x + 0.5, rect.y0 + rect.h);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = getCssVar("--sum");
+    ctx.beginPath();
+    ctx.arc(x, yPix, 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.font = AXIS_FONT;
+    const paddingX = 6, paddingY = 4, lineHeight = 12;
+    const textWidth = Math.max(...labelLines.map((l) => ctx.measureText(l).width));
+    const boxW = textWidth + paddingX * 2;
+    const boxH = labelLines.length * lineHeight + paddingY * 2 - 2;
+    let boxX = x + 8;
+    if (boxX + boxW > rect.x0 + rect.w) boxX = x - 8 - boxW;
+    let boxY = yPix - boxH / 2;
+    boxY = Math.min(Math.max(boxY, rect.y0), rect.y0 + rect.h - boxH);
+
+    ctx.fillStyle = getCssVar("--panel-2");
+    ctx.strokeStyle = getCssVar("--grid-line-strong");
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(boxX, boxY, boxW, boxH, 3);
+    else ctx.rect(boxX, boxY, boxW, boxH);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = getCssVar("--text");
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    labelLines.forEach((line, i) => {
+      ctx.fillText(line, boxX + paddingX, boxY + paddingY + lineHeight * i + lineHeight / 2 - 1);
+    });
+
+    ctx.restore();
+  }
+
+  function renderChannel(r, ch) {
+    const { ctx, w, h } = prepCanvas(r.canvas);
+    const rect = computePlotRect(w, h);
+    const yMin = -AMP_MAX, yMax = AMP_MAX;
+    drawGrid(ctx, rect, yMin, yMax, timeWindow);
+    const series = computeSeries(ch, timeAxis, nSamples);
+    drawTrace(ctx, rect, series, nSamples, yMin, yMax, ch.on ? r.color : getCssVar("--text-faint"), 1.5);
+
+    const idx = state.indexOf(ch);
+    const harmonicNote = harmonicMode && idx > 0 && !ch.noise && !ch.dc
+      ? ` · n=<b>${ch.f.toFixed(1)}</b>×f₁`
+      : "";
+    r.eq.innerHTML = ch.noise
+      ? `y<sub>${idx + 1}</sub>(t) ~ 𝒩(0, σ²) · σ = <b>${ch.a.toFixed(2)}</b>`
+      : ch.dc
+      ? `y<sub>${idx + 1}</sub>(t) = U<sub>DC</sub> = <b>${ch.a.toFixed(1)}</b> V`
+      : `y<sub>${idx + 1}</sub>(t) = <b>${ch.a.toFixed(1)}</b> · sin(2π·<b>${effectiveFrequency(ch).toFixed(1)}</b>·t + <b>${ch.p.toFixed(0)}°</b>)${harmonicNote}`;
+    r.row.classList.toggle("muted", !ch.on);
+  }
+
+  // lastSum* caches the last full computation so mouse-hover redraws (which
+  // fire on every mousemove) only re-run the cheap canvas drawing, not the
+  // channel synthesis — see drawSumPlot()/sumCanvas "mousemove" below.
+  let lastSumRange = 1;
+  let lastSumHighlighted = [];
+  let sumHover = null; // { xPix } in canvas-local CSS px, or null when not hovering
+
+  function renderSum() {
+    const sum = new Float64Array(nSamples);
+    let anyOn = false;
+    state.forEach((ch) => {
+      if (!ch.on) return;
+      anyOn = true;
+      const s = computeSeries(ch, timeAxis, nSamples);
+      for (let n = 0; n < nSamples; n++) sum[n] += s[n];
+    });
+
+    let peak = 0, sumSq = 0;
+    for (let n = 0; n < nSamples; n++) {
+      const v = sum[n];
+      if (Math.abs(v) > peak) peak = Math.abs(v);
+      sumSq += v * v;
+    }
+    const rms = Math.sqrt(sumSq / nSamples);
+
+    // widen the auto-range so any highlighted single signal (even a muted
+    // one, or noise whose sampled peak can exceed its σ) still fits inside
+    // the plot instead of clipping at the edges. Computed from the actual
+    // sampled series rather than the parameter, so it's exact for both a
+    // sine's peak (== amplitude) and noise's peak (>= σ).
+    const highlighted = [];
+    let overlayPeak = peak;
+    rows.forEach((r, i) => {
+      const ch = state[i];
+      if (!ch.highlight) return;
+      const series = computeSeries(ch, timeAxis, nSamples);
+      let p = 0;
+      for (let n = 0; n < nSamples; n++) {
+        const av = Math.abs(series[n]);
+        if (av > p) p = av;
+      }
+      overlayPeak = Math.max(overlayPeak, p);
+      highlighted.push({ r, series });
+    });
+
+    lastSumSeries = sum;
+    lastSumRange = Math.max(overlayPeak * 1.2, 0.5);
+    lastSumHighlighted = highlighted;
+
+    statPeak.textContent = (anyOn ? peak.toFixed(2) : "0.00") + " V";
+    statRms.textContent = (anyOn ? rms.toFixed(2) : "0.00") + " V";
+    statCrest.textContent = anyOn && rms > 1e-9 ? (peak / rms).toFixed(2) : "–";
+
+    drawSumPlot();
+
+    // the frequency analysis below always analyzes the signal just drawn here
+    renderFFT();
+  }
+
+  function formatSumTime(t) {
+    return timeWindow >= 1 ? t.toFixed(3) + " s" : (t * 1000).toFixed(3) + " ms";
+  }
+
+  function drawSumPlot() {
+    const range = lastSumRange;
+    const { ctx, w, h } = prepCanvas(sumCanvas);
+    const rect = computePlotRect(w, h);
+    drawGrid(ctx, rect, -range, range, timeWindow);
+
+    lastSumHighlighted.forEach(({ r, series }) => {
+      drawTrace(ctx, rect, series, nSamples, -range, range, r.color, 1.5);
+    });
+
+    drawTrace(ctx, rect, lastSumSeries, nSamples, -range, range, getCssVar("--sum"), 2);
+
+    if (sumHover && lastSumSeries) {
+      const frac = Math.min(1, Math.max(0, (sumHover.xPix - rect.x0) / rect.w));
+      const n = Math.round(frac * (nSamples - 1));
+      const t = timeAxis[n];
+      const amp = lastSumSeries[n];
+      const xPix = rect.x0 + (n / (nSamples - 1)) * rect.w;
+      const yPix = rect.y0 + rect.h - ((amp - -range) / (range - -range)) * rect.h;
+      drawHoverMarker(ctx, rect, xPix, yPix, [
+        "Amplitude: " + amp.toFixed(2) + " V",
+        "Zeit: " + formatSumTime(t),
+      ]);
+    }
+  }
+
+  sumCanvas.addEventListener("mousemove", (e) => {
+    sumHover = { xPix: e.offsetX };
+    drawSumPlot();
+  });
+  sumCanvas.addEventListener("mouseleave", () => {
+    sumHover = null;
+    drawSumPlot();
+  });
+
+  function formatTimeUnit(t, useMs) {
+    const v = useMs ? t * 1000 : t;
+    if (Math.abs(v) < 1e-9) return "0";
+    let s = v.toPrecision(3);
+    if (s.includes(".")) s = s.replace(/0+$/, "").replace(/\.$/, "");
+    return s;
+  }
+
+  function updateSumAxisHint() {
+    const useMs = timeWindow < 1;
+    const suffix = useMs ? " ms" : " s";
+    axisStart.textContent = "0" + suffix;
+    axisMid.textContent = formatTimeUnit(timeWindow / 2, useMs) + suffix;
+    axisEnd.textContent = formatTimeUnit(timeWindow, useMs) + suffix;
+  }
+
+  function renderAll() {
+    rows.forEach((r, i) => renderChannel(r, state[i]));
+    renderSum();
+    updateSumAxisHint();
+  }
+
+  // ---------- wiring ----------
+  function syncFill(range) {
+    const min = parseFloat(range.min), max = parseFloat(range.max), val = parseFloat(range.value);
+    const pct = ((val - min) / (max - min)) * 100;
+    range.style.setProperty("--fill", pct + "%");
+  }
+
+  rows.forEach((r, i) => {
+    const ch = state[i];
+
+    function bind(range, num, key, decimals) {
+      syncFill(range);
+      const update = (val) => {
+        val = Math.min(parseFloat(range.max), Math.max(parseFloat(range.min), val));
+        ch[key] = val;
+        range.value = val;
+        num.value = decimals === 0 ? Math.round(val) : val.toFixed(decimals);
+        syncFill(range);
+        renderChannel(r, ch);
+        if (harmonicMode && i === 0 && key === "f") {
+          // Signal 1 is the harmonic base frequency — refresh every
+          // dependent channel's own mini-plot, not just the sum
+          rows.forEach((rr, ii) => { if (ii > 0) renderChannel(rr, state[ii]); });
+        }
+        renderSum();
+      };
+      range.addEventListener("input", () => update(parseFloat(range.value)));
+      // Typing a value into the number field only takes effect once Enter
+      // is pressed — not on every keystroke, which previously re-clamped
+      // and reformatted the field's text after each character and fought
+      // the user mid-typing. Losing focus without pressing Enter still
+      // commits, as a safety net so a typed value isn't silently lost.
+      num.addEventListener("keydown", (e) => {
+        if (e.key !== "Enter") return;
+        if (num.value === "") return;
+        update(parseFloat(num.value));
+      });
+      num.addEventListener("blur", () => update(parseFloat(num.value || range.value)));
+    }
+
+    bind(r.aRange, r.aNum, "a", ch.noise ? 2 : 1);
+    if (!ch.noise && !ch.dc) {
+      bind(r.fRange, r.fNum, "f", 1);
+      bind(r.pRange, r.pNum, "p", 0);
+    }
+
+    r.onToggle.addEventListener("change", () => {
+      ch.on = r.onToggle.checked;
+      renderChannel(r, ch);
+      renderSum();
+    });
+
+    // click (or Enter/Space) on a mini plot: overlay that signal, in its
+    // own color, on top of the sum plot
+    r.canvas.tabIndex = 0;
+    r.canvas.setAttribute("role", "button");
+    r.canvas.setAttribute("aria-pressed", "false");
+    r.canvas.title = I18N[currentLang].canvasTitle;
+
+    function toggleHighlight() {
+      ch.highlight = !ch.highlight;
+      r.canvas.classList.toggle("highlighted", ch.highlight);
+      r.canvas.setAttribute("aria-pressed", String(ch.highlight));
+      renderSum();
+    }
+    r.canvas.addEventListener("click", toggleHighlight);
+    r.canvas.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        toggleHighlight();
+      }
+    });
+  });
+
+  // ---------- signal-form presets ----------
+  // Each preset is a function (i) => {f, a, p} giving channel i (0-based) its
+  // frequency, amplitude and phase. Odd-harmonic presets use n = 2i + 1
+  // (n = 1, 3, 5, 7, 9, 11), i.e. Fourier synthesis with only odd multiples
+  // of the fundamental f0.
+  const f0 = 1;   // Hz, fundamental frequency (Signal 1)
+  const a1 = 10;  // V, fundamental amplitude (Signal 1)
+  const round1 = (v) => Math.round(v * 10) / 10;
+
+  const PRESETS = {
+    sinus: {
+      values: () => ({ f: 1, a: 1, p: 0 }),
+    },
+    rechteck: {
+      values: (i) => {
+        const n = 2 * i + 1;
+        return { f: n * f0, a: round1(a1 / n), p: 0 };
+      },
+    },
+    dreieck: {
+      // y(t) = (8/π²) · Σ_{k=0}^{5} [ (-1)ᵏ/(2k+1)² · sin((2k+1)ω₀t) ]
+      // Channel i is harmonic k = i. The constant 8/π² prefactor is folded
+      // into A₁ = 10 (same convention as "Rechteck"), so only the relative
+      // 1/(2k+1)² falloff and the alternating sign (as a 180° phase flip,
+      // since amplitude can't go negative) remain per channel.
+      values: (i) => {
+        const n = 2 * i + 1;
+        const negative = i % 2 === 1;
+        return { f: n * f0, a: round1(a1 / (n * n)), p: negative ? 180 : 0 };
+      },
+    },
+  };
+
+  const presetHint = document.getElementById("preset-hint");
+  const presetButtons = Array.from(document.querySelectorAll(".preset-btn[data-preset]"));
+  let lastPresetKey = null; // null = show the default "choose a waveform" hint
+
+  function applyPreset(key) {
+    lastPresetKey = key;
+
+    if (key === "aus") {
+      rows.forEach((r, i) => {
+        const ch = state[i];
+        ch.on = false;
+        r.onToggle.checked = false;
+        renderChannel(r, ch);
+      });
+      renderSum();
+      presetHint.textContent = I18N[currentLang].presetOffHint;
+      presetButtons.forEach((b) => b.classList.toggle("active", b.dataset.preset === key));
+      return;
+    }
+
+    // Waveform presets assign explicit Hz values per channel, which would be
+    // misinterpreted as harmonic multipliers in Harmonic Mode — fall back to
+    // Frequency Mode so the preset always produces the intended waveform.
+    if (harmonicMode) {
+      harmonicMode = false;
+      updateModeUI();
+    }
+
+    const preset = PRESETS[key];
+    rows.forEach((r, i) => {
+      const ch = state[i];
+      if (ch.noise || ch.dc) return; // waveform presets only shape channels 1–6
+
+      const { f, a, p } = preset.values(i);
+
+      ch.on = true;
+      ch.f = f;
+      ch.a = a;
+      ch.p = p;
+
+      r.onToggle.checked = true;
+      r.fRange.value = ch.f;
+      r.fNum.value = ch.f.toFixed(1);
+      r.aRange.value = ch.a;
+      r.aNum.value = ch.a.toFixed(1);
+      r.pRange.value = ch.p;
+      r.pNum.value = ch.p;
+      syncFill(r.fRange);
+      syncFill(r.aRange);
+      syncFill(r.pRange);
+
+      renderChannel(r, ch);
+    });
+
+    renderSum();
+    presetHint.textContent = I18N[currentLang].presetHints[key];
+    presetButtons.forEach((b) => b.classList.toggle("active", b.dataset.preset === key));
+  }
+
+  presetButtons.forEach((btn) => {
+    btn.addEventListener("click", () => applyPreset(btn.dataset.preset));
+  });
+
+  // ---------- Frequency / Harmonic mode toggle ----------
+  const modeToggleBtn = document.getElementById("mode-toggle-btn");
+
+  function updateModeUI() {
+    modeToggleBtn.dataset.i18n = harmonicMode ? "modeHarmonic" : "modeFrequency";
+    modeToggleBtn.classList.toggle("active", harmonicMode);
+    rows.forEach((r, i) => {
+      if (i === 0 || !r.fLabel) return; // Signal 1 always shows "Freq. [Hz]"; noise/DC rows have no f-control
+      r.fLabel.dataset.i18n = harmonicMode ? "paramHarmonic" : "paramFrequency";
+    });
+    applyLanguage(currentLang);
+  }
+
+  modeToggleBtn.addEventListener("click", () => {
+    harmonicMode = !harmonicMode;
+    updateModeUI();
+    renderAll();
+  });
+
+  // ---------- time window (X-axis) control ----------
+  const timeWindowButtons = Array.from(document.querySelectorAll("[data-time-window]"));
+
+  function updateTimeWindowButtons() {
+    const eps = 1e-9;
+    timeWindowButtons.forEach((b) => {
+      b.classList.toggle("active", Math.abs(parseFloat(b.dataset.timeWindow) - timeWindow) < eps);
+    });
+  }
+
+  function applyTimeWindow(val) {
+    setTimeWindow(val);
+    timeWindowInput.value = timeWindow;
+    updateTimeWindowButtons();
+    renderAll();
+  }
+  timeWindowInput.addEventListener("input", () => {
+    if (timeWindowInput.value === "") return;
+    applyTimeWindow(parseFloat(timeWindowInput.value));
+  });
+  timeWindowInput.addEventListener("blur", () => {
+    applyTimeWindow(parseFloat(timeWindowInput.value || timeWindow));
+  });
+  timeWindowButtons.forEach((btn) => {
+    btn.addEventListener("click", () => applyTimeWindow(parseFloat(btn.dataset.timeWindow)));
+  });
+
+  // ---------- language switch ----------
+  const introText = document.getElementById("intro-text");
+  const sumTitleEl = document.getElementById("sum-title");
+  const langButtons = Array.from(document.querySelectorAll(".lang-btn"));
+  const i18nElements = Array.from(document.querySelectorAll("[data-i18n]"));
+
+  function applyLanguage(lang) {
+    currentLang = lang;
+    const dict = I18N[lang];
+    document.documentElement.lang = lang;
+    document.title = dict.docTitle;
+    introText.innerHTML = dict.introHtml;
+    sumTitleEl.textContent = dict.sumTitle;
+
+    i18nElements.forEach((el) => {
+      const key = el.dataset.i18n;
+      if (dict[key] !== undefined) el.textContent = dict[key];
+    });
+
+    presetHint.textContent =
+      lastPresetKey === null ? dict.presetDefaultHint :
+      lastPresetKey === "aus" ? dict.presetOffHint :
+      dict.presetHints[lastPresetKey];
+
+    rows.forEach((r) => { r.canvas.title = dict.canvasTitle; });
+    btnPdf.title = dict.pdfHint;
+    fftWindowLenLabelEl.title = dict.fftWindowLenHint;
+    fftWindowLenRange.title = dict.fftWindowLenHint;
+    fftWindowLenNum.title = dict.fftWindowLenHint;
+    layoutToggleBtn.title = dict.layoutToggleHint;
+    refreshWindowTypeOptions();
+
+    langButtons.forEach((b) => b.classList.toggle("active", b.dataset.lang === lang));
+  }
+
+  langButtons.forEach((btn) => {
+    btn.addEventListener("click", () => applyLanguage(btn.dataset.lang));
+  });
+
+  // ---------- layout toggle: Standardansicht vs. Side-by-side ----------
+  // Standardansicht = today's plain vertical stack (channels, then sum
+  // plot, then FFT). Side-by-side = a two-column layout: all 8 channels
+  // stacked on the left, sum plot + FFT stacked on the right — see
+  // .main-layout / .right-col in the stylesheet (both display:contents in
+  // Standardansicht, so the DOM structure is shared by both layouts). One
+  // button, its own label swapping between the two states — same pattern
+  // as the Frequenzmodus/Harmonischer-Modus toggle above.
+  const mainLayoutEl = document.getElementById("main-layout");
+  const layoutToggleBtn = document.getElementById("layout-toggle-btn");
+  let sideBySideLayout = false;
+
+  layoutToggleBtn.addEventListener("click", () => {
+    sideBySideLayout = !sideBySideLayout;
+    layoutToggleBtn.dataset.i18n = sideBySideLayout ? "layoutSide" : "layoutStandard";
+    layoutToggleBtn.classList.toggle("active", sideBySideLayout);
+    mainLayoutEl.classList.toggle("side-by-side", sideBySideLayout);
+    applyLanguage(currentLang);
+    // every canvas sizes itself from its CSS-rendered width (prepCanvas()),
+    // which just changed with the column layout — redraw once that new
+    // layout has actually been applied
+    window.requestAnimationFrame(renderAll);
+  });
+
+  // ---------- PDF export (browser print dialog → "Save as PDF") ----------
+  // The artifact sandbox blocks script-driven file downloads, so a real PDF
+  // library / blob download isn't an option here. Instead we assemble a
+  // clean, print-only report (general info → sum plot → individual signals)
+  // and hand it to the browser's native print pipeline.
+  const printView = document.getElementById("print-view");
+  const btnPdf = document.getElementById("btn-pdf");
+
+  function buildPrintView() {
+    const dict = I18N[currentLang];
+    const pv = dict.pv;
+    const generatedStr = new Date().toLocaleString(currentLang === "de" ? "de-DE" : "en-US");
+
+    const presetLabel =
+      lastPresetKey === null ? pv.noPreset :
+      lastPresetKey === "aus" ? dict.btnOff :
+      { sinus: dict.btnSine, rechteck: dict.btnSquare, dreieck: dict.btnTriangle }[lastPresetKey];
+
+    const tableRowsHtml = state.map((ch, i) => {
+      const typeTag = ch.noise ? " (" + pv.noiseLabel.split(",")[0] + ")" : ch.dc ? " (DC)" : "";
+      const ampCell = ch.noise ? ch.a.toFixed(2) + " (σ)" : ch.dc ? ch.a.toFixed(1) + " (DC)" : ch.a.toFixed(1);
+      const freqCell = ch.noise || ch.dc
+        ? "–"
+        : harmonicMode && i > 0
+        ? `${effectiveFrequency(ch).toFixed(1)} (n=${ch.f.toFixed(1)})`
+        : effectiveFrequency(ch).toFixed(1);
+      const phaseCell = ch.noise || ch.dc ? "–" : ch.p.toFixed(0);
+      return `
+      <tr class="${ch.on ? "" : "pv-off"}">
+        <td>Signal ${i + 1}${typeTag}</td>
+        <td>${ampCell}</td>
+        <td>${freqCell}</td>
+        <td>${phaseCell}</td>
+        <td>${ch.on ? pv.statusActive : pv.statusInactive}</td>
+      </tr>`;
+    }).join("");
+
+    const sumImg = sumCanvas.toDataURL("image/png");
+    const sumCaption = `${dict.statPeak}: ${statPeak.textContent} · ${dict.statRms}: ${statRms.textContent} · ${dict.statCrest}: ${statCrest.textContent} · ${dict.statThd}: ${statThd.textContent}`;
+
+    const signalsHtml = rows.map((r, i) => {
+      const ch = state[i];
+      const img = r.canvas.toDataURL("image/png");
+      const inactiveNote = ch.on ? "" : ` (${pv.statusInactive})`;
+      return `
+        <figure class="pv-figure">
+          <img src="${img}" alt="Signal ${i + 1}">
+          <figcaption>Signal ${i + 1} — ${r.eq.textContent}${inactiveNote}</figcaption>
+        </figure>`;
+    }).join("");
+
+    printView.innerHTML = `
+      <h1>${dict.docTitle}</h1>
+      <p class="pv-meta">${pv.generated}: ${generatedStr} · ${pv.timeWindow}: ${timeWindowInput.value}&nbsp;s · ${pv.activePreset}: ${presetLabel}</p>
+      <section>
+        <h2>${pv.generalInfo}</h2>
+        <table>
+          <thead><tr>
+            <th>${pv.colSignal}</th><th>${pv.colAmplitude}</th><th>${pv.colFrequency}</th><th>${pv.colPhase}</th><th>${pv.colStatus}</th>
+          </tr></thead>
+          <tbody>${tableRowsHtml}</tbody>
+        </table>
+      </section>
+      <section>
+        <h2>${pv.sumHeading}</h2>
+        <figure class="pv-figure">
+          <img src="${sumImg}" alt="${pv.sumHeading}">
+          <figcaption>${sumCaption}</figcaption>
+        </figure>
+      </section>
+      <section>
+        <h2>${pv.signalsHeading}</h2>
+        <div class="pv-signals-grid">${signalsHtml}</div>
+      </section>
+    `;
+  }
+
+  btnPdf.addEventListener("click", () => {
+    buildPrintView();
+    setTimeout(() => window.print(), 60);
+  });
+
+  window.addEventListener("resize", () => {
+    window.requestAnimationFrame(renderAll);
+  });
+
+  // ---------- Frequency analysis (FFT of the sum signal) ----------
+  // The FFT analyzes its own dedicated signal buffer (see
+  // computeFftSampleRate()/buildFftInputSeries() below), not lastSumSeries
+  // from the sum plot: sample rate adapts to the actual frequency content
+  // of Signals 1–6, and the analyzed duration is fixed at
+  // FFT_ANALYSIS_DURATION — independent of the plot's own time window.
+  const FFT_LENGTHS = [128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144, 524288, 1048576]; // 2^7 .. 2^20
+  const FFT_LENGTH_DEFAULT = 2048;
+  let fftLength = FFT_LENGTH_DEFAULT;
+  let fftWindowLength = FFT_LENGTH_DEFAULT;
+  let fftWindowLenManual = false; // true once the user edits the window length directly
+  let fftWindowType = "hann";
+  let fftScaling = "linear";
+  let fftXLog = false;
+  let fftYLog = false;
+  let lastSumSeries = null;
+
+  // lastFFT caches the last computeFFT() result plus derived axis/scale
+  // params so mouse-hover redraws (mousemove fires often) only re-run the
+  // cheap canvas drawing, not the FFT itself — see drawFFTPlot() below.
+  let lastFFT = null;
+  let fftHover = null; // { xPix } in canvas-local CSS px, or null when not hovering
+  let fftZoom = null;  // { fMin, fMax } zoomed frequency range in Hz, or null for the full spectrum
+  let fftDrag = null;  // { x0, x1 } canvas-local px while a click-and-drag zoom selection is in progress
+
+  const fftLengthSelect = document.getElementById("fft-length-select");
+  const fftWindowLenRange = document.getElementById("fft-window-len-range");
+  const fftWindowLenNum = document.getElementById("fft-window-len-num");
+  const fftWindowLenLabelEl = document.getElementById("fft-window-len-label");
+  const fftWindowTypeSelect = document.getElementById("fft-window-type-select");
+  const fftScaleButtons = Array.from(document.querySelectorAll("#fft-scale-group .preset-btn"));
+  const fftXButtons = Array.from(document.querySelectorAll("#fft-xaxis-group .preset-btn"));
+  const fftYButtons = Array.from(document.querySelectorAll("#fft-yaxis-group .preset-btn"));
+  const fftCanvas = document.getElementById("fft-canvas");
+  const fftStatPeakFreq = document.getElementById("fft-stat-peak-freq");
+  const fftStatPeakAmp = document.getElementById("fft-stat-peak-amp");
+  const fftHint = document.getElementById("fft-hint");
+  const fftYUnitBadge = document.getElementById("fft-yunit-badge");
+  const fftAxisStart = document.getElementById("fft-axis-start");
+  const fftAxisMid = document.getElementById("fft-axis-mid");
+  const fftAxisEndInput = document.getElementById("fft-axis-end-input");
+  const fftZoomOutBtn = document.getElementById("fft-zoom-out-btn");
+
+  FFT_LENGTHS.forEach((n) => {
+    const opt = document.createElement("option");
+    opt.value = String(n);
+    opt.textContent = String(n);
+    if (n === fftLength) opt.selected = true;
+    fftLengthSelect.appendChild(opt);
+  });
+  fftWindowLenRange.max = fftLength;
+  fftWindowLenNum.max = fftLength;
+  fftWindowLenRange.value = fftWindowLength;
+  fftWindowLenNum.value = fftWindowLength;
+  syncFill(fftWindowLenRange);
+
+  // radix-2 iterative Cooley-Tukey FFT, in place on real/imag arrays whose
+  // length must be a power of 2 (guaranteed by the FFT_LENGTHS options)
+  function fftInPlace(re, im) {
+    const n = re.length;
+    for (let i = 1, j = 0; i < n; i++) {
+      let bit = n >> 1;
+      for (; j & bit; bit >>= 1) j ^= bit;
+      j ^= bit;
+      if (i < j) {
+        let t = re[i]; re[i] = re[j]; re[j] = t;
+        t = im[i]; im[i] = im[j]; im[j] = t;
+      }
+    }
+    for (let len = 2; len <= n; len <<= 1) {
+      const ang = -2 * Math.PI / len;
+      const wr0 = Math.cos(ang), wi0 = Math.sin(ang);
+      const half = len >> 1;
+      for (let i = 0; i < n; i += len) {
+        let curWr = 1, curWi = 0;
+        for (let k = 0; k < half; k++) {
+          const ur = re[i + k], ui = im[i + k];
+          const tr = re[i + k + half] * curWr - im[i + k + half] * curWi;
+          const ti = re[i + k + half] * curWi + im[i + k + half] * curWr;
+          re[i + k] = ur + tr; im[i + k] = ui + ti;
+          re[i + k + half] = ur - tr; im[i + k + half] = ui - ti;
+          const nwr = curWr * wr0 - curWi * wi0;
+          const nwi = curWr * wi0 + curWi * wr0;
+          curWr = nwr; curWi = nwi;
+        }
+      }
+    }
+  }
+
+  // zeroth-order modified Bessel function of the first kind (power series),
+  // needed for the Kaiser-Bessel window
+  function besselI0(x) {
+    let sum = 1, term = 1;
+    const y = x / 2;
+    for (let k = 1; k < 40; k++) {
+      term *= (y * y) / (k * k);
+      sum += term;
+      if (term < 1e-14 * sum) break;
+    }
+    return sum;
+  }
+
+  const KAISER_BETA = 8.6;  // general-purpose shape factor, sidelobe suppression similar to Blackman-Harris
+  const TUKEY_ALPHA = 0.5;  // taper fraction: 0 = rectangular, 1 = Hann
+
+  function fftWindowCoeff(type, n, N) {
+    if (N <= 1) return 1;
+    const t = n / (N - 1); // 0..1
+    switch (type) {
+      case "hann":
+        return 0.5 - 0.5 * Math.cos(2 * Math.PI * t);
+      case "hamming":
+        return 0.54 - 0.46 * Math.cos(2 * Math.PI * t);
+      case "blackman":
+        return 0.42 - 0.5 * Math.cos(2 * Math.PI * t) + 0.08 * Math.cos(4 * Math.PI * t);
+      case "blackmanharris":
+        return 0.35875 - 0.48829 * Math.cos(2 * Math.PI * t) + 0.14128 * Math.cos(4 * Math.PI * t) - 0.01168 * Math.cos(6 * Math.PI * t);
+      case "flattop":
+        return 0.21557895 - 0.41663158 * Math.cos(2 * Math.PI * t) + 0.277263158 * Math.cos(4 * Math.PI * t)
+             - 0.083578947 * Math.cos(6 * Math.PI * t) + 0.006947368 * Math.cos(8 * Math.PI * t);
+      case "kaiser": {
+        const r = 2 * t - 1; // -1..1
+        return besselI0(KAISER_BETA * Math.sqrt(Math.max(0, 1 - r * r))) / besselI0(KAISER_BETA);
+      }
+      case "bartlett":
+        return 1 - Math.abs(2 * t - 1);
+      case "welch": {
+        const r = 2 * t - 1;
+        return 1 - r * r;
+      }
+      case "tukey": {
+        const a = TUKEY_ALPHA;
+        if (t < a / 2) return 0.5 * (1 + Math.cos(Math.PI * (2 * t / a - 1)));
+        if (t > 1 - a / 2) return 0.5 * (1 + Math.cos(Math.PI * (2 * t / a - 2 / a + 1)));
+        return 1;
+      }
+      default:
+        return 1; // rectangular
+    }
+  }
+
+  // The 10 most relevant window functions for general-purpose FFT analysis,
+  // combining Wikipedia's window-function catalog, Siemens' amplitude/energy
+  // correction concept (handled generically below via S1/S2, not hardcoded
+  // per window), and NI's application guidance for the hint text.
+  const WINDOW_DEFS = [
+    { key: "rect", de: "Rechteck", en: "Rectangular",
+      hintDe: "Für Transienten oder breitbandiges Rauschen; beste Frequenzauflösung, aber hohe Leckage bei nicht-periodischen Signalen.",
+      hintEn: "For transients or broadband noise; best frequency resolution but high leakage on non-periodic signals." },
+    { key: "hann", de: "Hanning", en: "Hanning",
+      hintDe: "Guter Allrounder für Sinus, Signalkombinationen oder unbekannten Inhalt — in ca. 95% der Fälle geeignet.",
+      hintEn: "Good all-rounder for sine waves, combinations or unknown content — suitable in about 95% of cases." },
+    { key: "hamming", de: "Hamming", en: "Hamming",
+      hintDe: "Für eng benachbarte Sinustöne ähnlicher Amplitude; erreicht an den Rändern nicht ganz Null (Restunstetigkeit).",
+      hintEn: "For closely spaced sine tones of similar amplitude; doesn't quite reach zero at the edges (slight discontinuity)." },
+    { key: "blackman", de: "Blackman", en: "Blackman",
+      hintDe: "Sehr geringe Leckage bei breiterer Hauptkeule; für Töne mit großem Amplitudenunterschied benachbarter Frequenzen.",
+      hintEn: "Very low leakage with a wider main lobe; for tones with large amplitude differences at nearby frequencies." },
+    { key: "blackmanharris", de: "Blackman-Harris", en: "Blackman-Harris",
+      hintDe: "Sehr hohe Sidelobe-Unterdrückung (>90 dB, 4-Term); für Signale mit sehr großem Dynamikbereich.",
+      hintEn: "Very high sidelobe rejection (>90 dB, 4-term); for signals with a very large dynamic range." },
+    { key: "flattop", de: "Flat Top", en: "Flat Top",
+      hintDe: "Genaueste Amplitudenmessung von Sinustönen; breiter Hauptpeak, dadurch schlechte Frequenzauflösung.",
+      hintEn: "Most accurate amplitude measurement of sine tones; wide main peak, hence poor frequency resolution." },
+    { key: "kaiser", de: "Kaiser-Bessel", en: "Kaiser-Bessel",
+      hintDe: "Flexibler Kompromiss zwischen Hauptkeule und Sidelobes; gut für zwei eng benachbarte Töne sehr unterschiedlicher Amplitude.",
+      hintEn: "Flexible trade-off between main lobe and sidelobes; good for two closely spaced tones of very different amplitude." },
+    { key: "bartlett", de: "Bartlett (Dreieck)", en: "Bartlett (Triangular)",
+      hintDe: "Einfaches Dreiecksfenster; moderate Leckage-Reduktion bei geringem Rechenaufwand.",
+      hintEn: "Simple triangular window; moderate leakage reduction at low computational cost." },
+    { key: "welch", de: "Welch", en: "Welch",
+      hintDe: "Parabolisches Fenster, ähnlich dem Sinus-Fenster; moderate, gleichmäßige Leckage-Reduktion.",
+      hintEn: "Parabolic window, similar to the sine window; moderate, even leakage reduction." },
+    { key: "tukey", de: "Tukey", en: "Tukey",
+      hintDe: "Kombiniert Rechteck (Mitte) mit Cosinus-Flanken (α=0,5); gut für Transienten mit stationärem Kernbereich.",
+      hintEn: "Combines a rectangular core with cosine tapers (α=0.5); good for transients with a stationary core region." },
+  ];
+
+  WINDOW_DEFS.forEach((wd) => {
+    const opt = document.createElement("option");
+    opt.value = wd.key;
+    if (wd.key === fftWindowType) opt.selected = true;
+    fftWindowTypeSelect.appendChild(opt);
+  });
+
+  // Refreshes option labels/tooltips for the current language, and the
+  // select's own title (the mouse-over hint) for the currently chosen window
+  function refreshWindowTypeOptions() {
+    Array.from(fftWindowTypeSelect.options).forEach((opt, i) => {
+      const wd = WINDOW_DEFS[i];
+      opt.textContent = currentLang === "de" ? wd.de : wd.en;
+      opt.title = currentLang === "de" ? wd.hintDe : wd.hintEn;
+    });
+    updateWindowTypeTooltip();
+  }
+
+  function updateWindowTypeTooltip() {
+    const wd = WINDOW_DEFS.find((w) => w.key === fftWindowType) || WINDOW_DEFS[1];
+    fftWindowTypeSelect.title = currentLang === "de" ? wd.hintDe : wd.hintEn;
+  }
+  refreshWindowTypeOptions();
+
+  // fs for the FFT's dedicated buffer: 5× the highest frequency currently
+  // set on Signals 1–6 (accounting for the Harmonic-Mode multiplier via
+  // effectiveFrequency), comfortably satisfying Nyquist for whatever tone
+  // combination is active. Falls back to the plot's own base rate when
+  // Signals 1–6 carry no frequency content at all (e.g. all at 0 Hz, or
+  // only noise/DC channels are on).
+  function computeFftSampleRate() {
+    let maxFreq = 0;
+    for (let i = 0; i < 6; i++) {
+      const f = Math.abs(effectiveFrequency(state[i]));
+      if (f > maxFreq) maxFreq = f;
+    }
+    // only the fully-degenerate case (no frequency content at all on
+    // Signals 1–6) falls back to the plot's base rate — any real frequency
+    // drives fs = 5×maxFreq directly, uninfluenced by that fallback
+    if (maxFreq <= 0) return SAMPLE_RATE;
+    return FFT_RATE_MULT * maxFreq;
+  }
+
+  // separate from the plot's noiseBase (different length/sample rate) —
+  // cached and only rebuilt when the FFT's own sample count changes, same
+  // "don't reroll on every render" reasoning as the plot's noiseBase.
+  let fftNoiseBase = null;
+  let fftNoiseBaseLen = -1;
+
+  // Synthesizes the sum of all active channels over the fixed
+  // FFT_ANALYSIS_DURATION at the adaptive FFT sample rate — entirely
+  // independent of the sum plot's own timeAxis/nSamples, so the FFT no
+  // longer shows exactly what's drawn on the sum plot but instead a
+  // higher-fidelity analysis window sized for the actual signal content.
+  // dedicated time axis for the FFT buffer, built directly from the sample
+  // spacing dt = 1/fs — NOT from stretching a fixed duration across `count`
+  // points like buildTimeAxis() does elsewhere. That distinction matters
+  // once SAMPLES_MAX clamps count below fs·FFT_ANALYSIS_DURATION: stretching
+  // would silently synthesize at a lower *actual* rate than the `fs` used
+  // for the frequency axis, mislabeling every peak. Building from dt = 1/fs
+  // keeps the synthesized signal's true rate always equal to `fs`, and the
+  // analyzed duration ((count-1)/fs) simply falls short of the nominal 10 s
+  // in that edge case — which analysisDuration in computeFFT() reports.
+  function buildFftTimeAxis(fs, count) {
+    const axis = new Float64Array(count);
+    for (let n = 0; n < count; n++) axis[n] = n / fs;
+    return axis;
+  }
+
+  function buildFftInputSeries() {
+    const fs = computeFftSampleRate();
+    const count = Math.min(SAMPLES_MAX, Math.max(SAMPLES_MIN, Math.round(fs * FFT_ANALYSIS_DURATION)));
+    const axis = buildFftTimeAxis(fs, count);
+
+    if (fftNoiseBaseLen !== count) {
+      fftNoiseBase = buildNoiseBase(count);
+      fftNoiseBaseLen = count;
+    }
+
+    const sum = new Float64Array(count);
+    let anyOn = false;
+    state.forEach((ch) => {
+      if (!ch.on) return;
+      anyOn = true;
+      const s = computeSeries(ch, axis, count, fftNoiseBase);
+      for (let n = 0; n < count; n++) sum[n] += s[n];
+    });
+    if (!anyOn) return null;
+
+    return { series: sum, fs, count };
+  }
+
+  function computeFFT() {
+    const input = buildFftInputSeries();
+    if (!input) return null;
+    const { series, fs, count } = input;
+
+    const N = fftLength;
+    const L = Math.max(2, Math.min(fftWindowLength, count, N));
+    const re = new Float64Array(N);
+    const im = new Float64Array(N);
+    // S1 = sum of window coefficients (amplitude-spectrum correction),
+    // S2 = sum of squared window coefficients (PSD correction) — the
+    // standard pair from Heinzel/Rüdiger/Schilling's DFT windowing paper
+    let s1 = 0, s2 = 0;
+    for (let n = 0; n < L; n++) {
+      const wc = fftWindowCoeff(fftWindowType, n, L);
+      s1 += wc;
+      s2 += wc * wc;
+      re[n] = series[n] * wc;
+    }
+    fftInPlace(re, im);
+
+    const half = N / 2;
+    const mags = new Float64Array(half + 1);
+    for (let k = 0; k <= half; k++) {
+      const raw2 = re[k] * re[k] + im[k] * im[k]; // |X[k]|²
+      const factor = (k === 0 || k === half) ? 1 : 2; // single-sided spectrum
+      if (fftScaling === "psd") {
+        mags[k] = (factor * raw2) / (fs * s2); // power spectral density, V²/Hz
+      } else {
+        let amp = (factor * Math.sqrt(raw2)) / s1; // linear amplitude spectrum, V
+        if (fftScaling === "rms" && k > 0) amp /= Math.SQRT2; // DC has no RMS/peak distinction
+        mags[k] = amp;
+      }
+    }
+
+    const freqStep = fs / N;
+    const analysisDuration = count / fs; // may fall short of FFT_ANALYSIS_DURATION if SAMPLES_MAX clamped count
+    return { mags, freqStep, fs, half, L, analysisDuration };
+  }
+
+  function fftXPos(freq, rect, fMin, fMax, xLog) {
+    if (xLog) {
+      const lf = Math.log10(Math.max(freq, fMin));
+      const lMin = Math.log10(fMin), lMax = Math.log10(Math.max(fMax, fMin * 10));
+      return rect.x0 + ((lf - lMin) / (lMax - lMin)) * rect.w;
+    }
+    return rect.x0 + ((freq - fMin) / (fMax - fMin)) * rect.w;
+  }
+
+  function fftYPos(val, rect, yMin, yMax) {
+    return rect.y0 + rect.h - ((val - yMin) / (yMax - yMin)) * rect.h;
+  }
+
+  // inverse of fftXPos(): canvas-local pixel x -> frequency in Hz, honoring
+  // the current linear/log x-scale. Shared by the hover-crosshair readout
+  // and the click-and-drag zoom selection below.
+  function fftPixelToFreq(xPix, rect, fMin, fMax, xLog) {
+    const frac = Math.min(1, Math.max(0, (xPix - rect.x0) / rect.w));
+    if (xLog) {
+      const lMin = Math.log10(fMin), lMax = Math.log10(Math.max(fMax, fMin * 10));
+      return Math.pow(10, lMin + frac * (lMax - lMin));
+    }
+    return fMin + frac * (fMax - fMin);
+  }
+
+  function niceLogTicks(fMin, fMax) {
+    const ticks = [];
+    const startExp = Math.floor(Math.log10(fMin));
+    const endExp = Math.ceil(Math.log10(fMax));
+    for (let e = startExp; e <= endExp; e++) {
+      [1, 2, 5].forEach((m) => {
+        const v = m * Math.pow(10, e);
+        if (v >= fMin - 1e-9 && v <= fMax + 1e-9) ticks.push({ v, major: m === 1 });
+      });
+    }
+    return ticks;
+  }
+
+  function drawFFTGrid(ctx, rect, fMin, fMax, xLog, yMin, yMax, yLog) {
+    const { x0, y0, w, h } = rect;
+
+    if (xLog) {
+      niceLogTicks(fMin, fMax).forEach(({ v, major }) => {
+        const x = fftXPos(v, rect, fMin, fMax, true);
+        ctx.strokeStyle = major ? getCssVar("--grid-line-strong") : getCssVar("--grid-line");
+        ctx.beginPath();
+        ctx.moveTo(x + 0.5, y0);
+        ctx.lineTo(x + 0.5, y0 + h);
+        ctx.stroke();
+      });
+    } else {
+      const divisions = 5;
+      for (let i = 0; i <= divisions; i++) {
+        const v = fMin + (i / divisions) * (fMax - fMin);
+        const x = fftXPos(v, rect, fMin, fMax, false);
+        ctx.strokeStyle = getCssVar("--grid-line");
+        ctx.beginPath();
+        ctx.moveTo(x + 0.5, y0);
+        ctx.lineTo(x + 0.5, y0 + h);
+        ctx.stroke();
+      }
+    }
+
+    ctx.font = AXIS_FONT;
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    const yDivisions = 4;
+    for (let i = 0; i <= yDivisions; i++) {
+      const val = yMax - (i / yDivisions) * (yMax - yMin);
+      const y = y0 + (i / yDivisions) * h;
+      ctx.strokeStyle = i === yDivisions ? getCssVar("--grid-line-strong") : getCssVar("--grid-line");
+      ctx.beginPath();
+      ctx.moveTo(x0, y + 0.5);
+      ctx.lineTo(x0 + w, y + 0.5);
+      ctx.stroke();
+      ctx.fillStyle = getCssVar("--text-faint");
+      const label = yLog ? String(Math.round(val)) : formatTick(val);
+      ctx.fillText(label, x0 - 6, Math.min(Math.max(y, 5), y0 + h - 1));
+    }
+
+    ctx.strokeStyle = getCssVar("--grid-line-strong");
+    ctx.beginPath();
+    ctx.moveTo(x0 + 0.5, y0);
+    ctx.lineTo(x0 + 0.5, y0 + h);
+    ctx.stroke();
+  }
+
+  function formatFreqLabel(f) {
+    return formatTick(f) + " Hz";
+  }
+
+  function renderFFT() {
+    const result = computeFFT();
+
+    if (!result) {
+      lastFFT = null;
+      fftZoomOutBtn.hidden = !fftZoom;
+      statThd.textContent = "–";
+      drawFFTPlot();
+      return;
+    }
+    const { mags, freqStep, fs, half, L, analysisDuration } = result;
+
+    let peakK = 1, peakVal = mags.length > 1 ? mags[1] : 0;
+    for (let k = 2; k <= half; k++) {
+      if (mags[k] > peakVal) { peakVal = mags[k]; peakK = k; }
+    }
+
+    // THD-F (relative to the fundamental): the FFT's own peak bin is taken
+    // as the fundamental, and every harmonic bin n·peakK up to Nyquist is
+    // summed. mags is in linear/RMS amplitude or in PSD (V²/Hz) depending on
+    // fftScaling — either way the ratio Vn/V1 comes out right: PSD is
+    // proportional to amplitude², so sqrt(mags[k]) is used as the
+    // amplitude-proportional quantity in that case instead of mags[k]
+    // directly. Shown in the sum plot's stat row, next to the crest factor.
+    const ampProxy = (k) => (fftScaling === "psd" ? Math.sqrt(Math.max(mags[k], 0)) : mags[k]);
+    let thdPercent = null;
+    const fundamentalAmp = ampProxy(peakK);
+    if (peakK >= 1 && fundamentalAmp > 1e-12) {
+      let harmonicSumSq = 0;
+      for (let n = 2, hk = peakK * 2; hk <= half; n++, hk = peakK * n) {
+        const a = ampProxy(hk);
+        harmonicSumSq += a * a;
+      }
+      thdPercent = (100 * Math.sqrt(harmonicSumSq)) / fundamentalAmp;
+    }
+    statThd.textContent = thdPercent === null ? "–" : thdPercent.toFixed(2) + " %";
+
+    // PSD is a power quantity (V²/Hz) so its dB conversion uses 10·log10;
+    // the linear/RMS amplitude spectrum (V) uses the usual 20·log10
+    const dbFactor = fftScaling === "psd" ? 10 : 20;
+    const magUnit = fftScaling === "psd" ? " V²/Hz" : " V";
+
+    fftStatPeakFreq.textContent = (peakK * freqStep).toFixed(1) + " Hz";
+    fftStatPeakAmp.textContent = peakVal.toFixed(fftScaling === "psd" ? 6 : 3) + magUnit;
+
+    const fMaxFull = fs / 2;
+    const fMinFull = fftXLog ? Math.max(freqStep, 1e-6) : 0;
+
+    // apply an active click-and-drag zoom, clamped to the current full
+    // range (which can shift when fs/fftLength/x-scale change) — a zoom
+    // that has collapsed below one bin is no longer meaningful, so drop it
+    let fMin = fMinFull, fMax = fMaxFull;
+    if (fftZoom) {
+      fMin = Math.min(Math.max(fftZoom.fMin, fMinFull), fMaxFull);
+      fMax = Math.min(Math.max(fftZoom.fMax, fMinFull), fMaxFull);
+      if (fMax - fMin < freqStep) { fftZoom = null; fMin = fMinFull; fMax = fMaxFull; }
+    }
+    fftZoomOutBtn.hidden = !fftZoom;
+
+    let maxMag = 0;
+    for (let k = 0; k <= half; k++) if (mags[k] > maxMag) maxMag = mags[k];
+
+    let yMin, yMax;
+    if (fftYLog) {
+      const maxDb = maxMag > 0 ? dbFactor * Math.log10(maxMag) : 0;
+      yMax = maxDb + 6;
+      yMin = yMax - 100;
+    } else {
+      yMax = Math.max(maxMag * 1.2, 1e-6);
+      yMin = 0;
+    }
+
+    fftAxisStart.textContent = formatFreqLabel(fMin);
+    fftAxisMid.textContent = formatFreqLabel(fftXLog ? Math.sqrt(fMin * fMax) : (fMin + fMax) / 2);
+    // editable max-frequency field: reflects the current zoom (or Nyquist,
+    // fs/2, when unzoomed) as a whole Hz value; the ceiling it accepts
+    // tracks the current Nyquist frequency too. Left untouched while the
+    // user has it focused, so typing isn't fought mid-edit (see the
+    // keydown/blur handlers below, same "commit on Enter" pattern as the
+    // amplitude/frequency/phase fields).
+    fftAxisEndInput.max = Math.round(fMaxFull);
+    if (document.activeElement !== fftAxisEndInput) {
+      fftAxisEndInput.value = Math.round(fMax);
+    }
+
+    // Y-axis unit, matching the current scaling: a log Y-axis always reads
+    // in dB regardless of scaling mode; a linear one shows V (linear/RMS
+    // amplitude spectrum) or V²/Hz (PSD).
+    fftYUnitBadge.textContent = fftYLog ? "dB" : magUnit.trim();
+
+    fftHint.textContent = `Δf = ${freqStep.toFixed(2)} Hz · fs = ${Math.round(fs)} Hz (adaptiv, 5×f_max) · T = ${analysisDuration.toFixed(1)} s · N = ${fftLength} · Fenster: ${L}/${fftLength}`;
+
+    lastFFT = { mags, freqStep, fs, half, fMin, fMax, yMin, yMax, dbFactor, magUnit };
+
+    drawFFTPlot();
+  }
+
+  function drawFFTPlot() {
+    const { ctx, w, h } = prepCanvas(fftCanvas);
+    const rect = computePlotRect(w, h);
+
+    if (!lastFFT) {
+      drawFFTGrid(ctx, rect, 0, 1, false, 0, 1, false);
+      return;
+    }
+    const { mags, freqStep, half, fMin, fMax, yMin, yMax, dbFactor, magUnit } = lastFFT;
+
+    drawFFTGrid(ctx, rect, fMin, fMax, fftXLog, yMin, yMax, fftYLog);
+
+    ctx.beginPath();
+    let started = false;
+    const startK = fftXLog ? 1 : 0;
+    for (let k = startK; k <= half; k++) {
+      const freq = k * freqStep;
+      if (freq < fMin - 1e-9 || freq > fMax + 1e-9) continue;
+      const x = fftXPos(freq, rect, fMin, fMax, fftXLog);
+      const rawVal = fftYLog ? dbFactor * Math.log10(Math.max(mags[k], 1e-9)) : mags[k];
+      const val = Math.min(Math.max(rawVal, yMin), yMax);
+      const y = fftYPos(val, rect, yMin, yMax);
+      if (!started) { ctx.moveTo(x, y); started = true; } else { ctx.lineTo(x, y); }
+    }
+    ctx.strokeStyle = getCssVar("--sum");
+    ctx.lineWidth = 1.6;
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    ctx.stroke();
+
+    if (fftDrag) {
+      // click-and-drag zoom selection in progress — a translucent band over
+      // the dragged x-range, clamped to the plot rect
+      const xA = Math.min(Math.max(Math.min(fftDrag.x0, fftDrag.x1), rect.x0), rect.x0 + rect.w);
+      const xB = Math.min(Math.max(Math.max(fftDrag.x0, fftDrag.x1), rect.x0), rect.x0 + rect.w);
+      ctx.save();
+      ctx.fillStyle = getCssVar("--sum");
+      ctx.globalAlpha = 0.12;
+      ctx.fillRect(xA, rect.y0, Math.max(0, xB - xA), rect.h);
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = getCssVar("--sum");
+      ctx.setLineDash([3, 3]);
+      ctx.lineWidth = 1;
+      ctx.strokeRect(xA + 0.5, rect.y0 + 0.5, Math.max(0, xB - xA - 1), rect.h - 1);
+      ctx.restore();
+    } else if (fftHover) {
+      // snap the hovered pixel to the nearest actual FFT bin (handles both
+      // linear and log x-scale, matching how the trace was positioned above)
+      const freq = fftPixelToFreq(fftHover.xPix, rect, fMin, fMax, fftXLog);
+      let k = Math.round(freq / freqStep);
+      k = Math.min(half, Math.max(startK, k));
+      const snappedFreq = k * freqStep;
+      const mag = mags[k];
+      const rawVal = fftYLog ? dbFactor * Math.log10(Math.max(mag, 1e-9)) : mag;
+      const val = Math.min(Math.max(rawVal, yMin), yMax);
+      const xPix = fftXPos(snappedFreq, rect, fMin, fMax, fftXLog);
+      const yPix = fftYPos(val, rect, yMin, yMax);
+      const ampText = fftYLog
+        ? val.toFixed(1) + " dB"
+        : mag.toFixed(fftScaling === "psd" ? 6 : 3) + magUnit;
+      drawHoverMarker(ctx, rect, xPix, yPix, [
+        "Amplitude: " + ampText,
+        "Frequenz: " + snappedFreq.toFixed(1) + " Hz",
+      ]);
+    }
+  }
+
+  fftCanvas.addEventListener("mousemove", (e) => {
+    if (fftDrag) return; // the window-level listener below drives the drag
+    fftHover = { xPix: e.offsetX };
+    drawFFTPlot();
+  });
+  fftCanvas.addEventListener("mouseleave", () => {
+    if (fftDrag) return; // keep the selection visible; window-level listeners will finish it
+    fftHover = null;
+    drawFFTPlot();
+  });
+
+  // click-and-drag zoom on the frequency axis: press inside the plot, drag
+  // horizontally, release to zoom into that frequency range. Tracked via
+  // window-level listeners (not just the canvas) so the drag still finishes
+  // correctly if the pointer leaves the canvas — or the whole window —
+  // before the mouse button is released.
+  fftCanvas.addEventListener("mousedown", (e) => {
+    if (e.button !== 0 || !lastFFT) return;
+    fftDrag = { x0: e.offsetX, x1: e.offsetX };
+    fftHover = null;
+    drawFFTPlot();
+  });
+
+  window.addEventListener("mousemove", (e) => {
+    if (!fftDrag) return;
+    const boundingRect = fftCanvas.getBoundingClientRect();
+    fftDrag.x1 = e.clientX - boundingRect.left;
+    drawFFTPlot();
+  });
+
+  window.addEventListener("mouseup", () => {
+    if (!fftDrag) return;
+    const { x0, x1 } = fftDrag;
+    fftDrag = null;
+    finishFftZoomDrag(x0, x1);
+  });
+
+  function finishFftZoomDrag(x0Pix, x1Pix) {
+    if (!lastFFT || Math.abs(x1Pix - x0Pix) < 4) { drawFFTPlot(); return; } // too small to be a deliberate drag
+
+    const boundingRect = fftCanvas.getBoundingClientRect();
+    const w = Math.max(1, Math.round(boundingRect.width));
+    const h = Math.max(1, Math.round(boundingRect.height));
+    const rect = computePlotRect(w, h);
+    const { fMin, fMax, freqStep } = lastFFT;
+
+    const fA = fftPixelToFreq(Math.min(x0Pix, x1Pix), rect, fMin, fMax, fftXLog);
+    const fB = fftPixelToFreq(Math.max(x0Pix, x1Pix), rect, fMin, fMax, fftXLog);
+    if (fB - fA < freqStep) { drawFFTPlot(); return; } // selection collapsed below one bin — ignore
+
+    fftZoom = { fMin: fA, fMax: fB };
+    renderFFT();
+  }
+
+  fftZoomOutBtn.addEventListener("click", () => {
+    fftZoom = null;
+    renderFFT();
+  });
+
+  // typing a max frequency and pressing Enter zooms to 0 Hz–that value,
+  // reusing the same fftZoom state (and its clamping in renderFFT()) as the
+  // click-and-drag zoom — losing focus without Enter still commits, as a
+  // safety net, same pattern as the amplitude/frequency/phase fields
+  function commitFftAxisEndInput() {
+    if (fftAxisEndInput.value === "") return;
+    const val = parseFloat(fftAxisEndInput.value);
+    if (!Number.isFinite(val) || val <= 0) return;
+    fftZoom = { fMin: 0, fMax: val };
+    renderFFT();
+  }
+  fftAxisEndInput.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    commitFftAxisEndInput();
+  });
+  fftAxisEndInput.addEventListener("blur", commitFftAxisEndInput);
+
+  fftLengthSelect.addEventListener("change", () => {
+    fftLength = parseInt(fftLengthSelect.value, 10);
+    fftWindowLenRange.max = fftLength;
+    fftWindowLenNum.max = fftLength;
+    if (!fftWindowLenManual) {
+      // window length follows the FFT length until the user overrides it
+      fftWindowLength = fftLength;
+    } else if (fftWindowLength > fftLength) {
+      fftWindowLength = fftLength; // still can't exceed the new FFT length
+    }
+    fftWindowLenRange.value = fftWindowLength;
+    fftWindowLenNum.value = fftWindowLength;
+    syncFill(fftWindowLenRange);
+    renderFFT();
+  });
+
+  (function bindFftWindowLen() {
+    const update = (val) => {
+      val = Math.round(Math.min(parseFloat(fftWindowLenRange.max), Math.max(parseFloat(fftWindowLenRange.min), val)));
+      fftWindowLength = val;
+      fftWindowLenManual = true;
+      fftWindowLenRange.value = val;
+      fftWindowLenNum.value = val;
+      syncFill(fftWindowLenRange);
+      renderFFT();
+    };
+    fftWindowLenRange.addEventListener("input", () => update(parseFloat(fftWindowLenRange.value)));
+    fftWindowLenNum.addEventListener("input", () => {
+      if (fftWindowLenNum.value === "") return;
+      update(parseFloat(fftWindowLenNum.value));
+    });
+    fftWindowLenNum.addEventListener("blur", () => update(parseFloat(fftWindowLenNum.value || fftWindowLenRange.value)));
+  })();
+
+  fftWindowTypeSelect.addEventListener("change", () => {
+    fftWindowType = fftWindowTypeSelect.value;
+    updateWindowTypeTooltip();
+    renderFFT();
+  });
+
+  fftScaleButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      fftScaling = btn.dataset.scale;
+      fftScaleButtons.forEach((b) => b.classList.toggle("active", b === btn));
+      renderFFT();
+    });
+  });
+
+  fftXButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      fftXLog = btn.dataset.xscale === "log";
+      fftXButtons.forEach((b) => b.classList.toggle("active", b === btn));
+      renderFFT();
+    });
+  });
+
+  fftYButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      fftYLog = btn.dataset.yscale === "log";
+      fftYButtons.forEach((b) => b.classList.toggle("active", b === btn));
+      renderFFT();
+    });
+  });
+
+  applyLanguage("de");
+  updateTimeWindowButtons();
+  renderAll();
+})();
+</script>
